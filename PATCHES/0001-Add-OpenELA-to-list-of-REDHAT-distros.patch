@@ -1,0 +1,25 @@
+From 9c73fddf6e61b49572b800570752070a677a71fb Mon Sep 17 00:00:00 2001
+From: Louis Abel <label@rockylinux.org>
+Date: Tue, 10 May 2022 15:10:17 -0700
+Subject: [PATCH] [PATCH] Add OpenELA to list of REDHAT distros
+
+---
+ m4/guestfs-appliance.m4 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/m4/guestfs-appliance.m4 b/m4/guestfs-appliance.m4
+index b0a6ab4..b9a3498 100644
+--- a/m4/guestfs-appliance.m4
++++ b/m4/guestfs-appliance.m4
+@@ -105,7 +105,7 @@ AC_ARG_WITH([distro],
+             ( . /etc/os-release && echo $ID | tr '@<:@:lower:@:>@' '@<:@:upper:@:>@' ) >&AS_MESSAGE_LOG_FD
+             DISTRO="`. /etc/os-release && echo $ID | tr '@<:@:lower:@:>@' '@<:@:upper:@:>@'`"
+             AS_CASE([$DISTRO],
+-                    [FEDORA | RHEL | CENTOS],[DISTRO=REDHAT],
++                    [FEDORA | RHEL | CENTOS | OpenELA],[DISTRO=REDHAT],
+                     [OPENSUSE* | SLED | SLES],[DISTRO=SUSE],
+                     [ARCH],[DISTRO=ARCHLINUX],
+                     [OPENMANDRIVA],[DISTRO=OPENMANDRIVA])
+--
+2.27.0
+
