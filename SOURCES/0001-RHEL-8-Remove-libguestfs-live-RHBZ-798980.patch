@@ -1,0 +1,56 @@
+From 5b6d2b05fe0c4035b9791a751e3133d26c7baa2d Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 21 Dec 2012 15:50:11 +0000
+Subject: [PATCH] RHEL 8: Remove libguestfs live (RHBZ#798980).
+
+This isn't supported in RHEL 8.
+
+Disable daemon tests that require the 'unix' backend.
+---
+ lib/launch-unix.c        | 7 +++++++
+ tests/daemon/Makefile.am | 4 +---
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/lib/launch-unix.c b/lib/launch-unix.c
+index 0d344f9df..74dd1bb4a 100644
+--- a/lib/launch-unix.c
++++ b/lib/launch-unix.c
+@@ -37,6 +37,12 @@
+ static int
+ launch_unix (guestfs_h *g, void *datav, const char *sockpath)
+ {
++  error (g,
++	 "launch: In RHEL, only the 'libvirt' or 'direct' method is supported.\n"
++	 "In particular, \"libguestfs live\" is not supported.");
++  return -1;
++
++#if 0
+   int r, daemon_sock = -1;
+   struct sockaddr_un addr;
+   uint32_t size;
+@@ -106,6 +112,7 @@ launch_unix (guestfs_h *g, void *datav, const char *sockpath)
+     g->conn = NULL;
+   }
+   return -1;
++#endif
+ }
+ 
+ static int
+diff --git a/tests/daemon/Makefile.am b/tests/daemon/Makefile.am
+index 921e6d1df..8b2887247 100644
+--- a/tests/daemon/Makefile.am
++++ b/tests/daemon/Makefile.am
+@@ -23,9 +23,7 @@ include $(top_srcdir)/subdir-rules.mk
+ 
+ check_DATA = captive-daemon.pm
+ 
+-TESTS = \
+-	test-daemon-start.pl \
+-	test-btrfs.pl
++TESTS =
+ 
+ TESTS_ENVIRONMENT = $(top_builddir)/run --test
+ 
+-- 
+2.31.1
+

@@ -1,0 +1,92 @@
+From bb19cc0cdd43619ccf830e1e608f79e46f8ddf86 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 12 May 2022 08:36:37 +0100
+Subject: [PATCH] lib: Disable 5-level page tables when using -cpu max
+
+In https://bugzilla.redhat.com/show_bug.cgi?id=2082806 we've been
+tracking an insidious qemu bug which intermittently prevents the
+libguestfs appliance from starting.  The symptoms are that SeaBIOS
+starts and displays its messages, but the kernel isn't reached.  We
+found that the kernel does in fact start, but when it tries to set up
+page tables and jump to protected mode it gets a triple fault which
+causes the emulated CPU in qemu to reset (qemu exits).
+
+This seems to only affect TCG (not KVM).
+
+Yesterday I found that this is caused by using -cpu max which enables
+the "la57" feature (5-level page tables[0]), and that we can make the
+problem go away using -cpu max,la57=off.  Note that I still don't
+fully understand the qemu bug, so this is only a workaround.
+
+I chose to disable 5-level page tables for both TCG and KVM, partly to
+make the patch simpler, and partly because I guess it's not a feature
+(ie. 57 bit linear addresses) that is useful for the libguestfs
+appliance case, where we have limited physical memory and no need to
+run any programs with huge address spaces.
+
+I tested this by running both the direct & libvirt paths overnight.  I
+expect that this patch will fail with old qemu/libvirt which doesn't
+understand the "la57" feature, but this is only intended as a
+temporary workaround.
+
+[0] Article about 5-level page tables as background:
+https://lwn.net/Articles/717293/
+
+Thanks: Laszlo Ersek
+Fixes: https://answers.launchpad.net/ubuntu/+source/libguestfs/+question/701625
+
+[RHEL 8.7: Patch is not upstream.  This is the initial patch as posted
+to the mailing list here:
+https://listman.redhat.com/archives/libguestfs/2022-May/028853.html]
+---
+ lib/launch-direct.c  | 15 +++++++++++++--
+ lib/launch-libvirt.c |  7 +++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/lib/launch-direct.c b/lib/launch-direct.c
+index de17d2167..6b28e4724 100644
+--- a/lib/launch-direct.c
++++ b/lib/launch-direct.c
+@@ -534,8 +534,19 @@ launch_direct (guestfs_h *g, void *datav, const char *arg)
+   } end_list ();
+ 
+   cpu_model = guestfs_int_get_cpu_model (has_kvm && !force_tcg);
+-  if (cpu_model)
+-    arg ("-cpu", cpu_model);
++  if (cpu_model) {
++#if defined(__x86_64__)
++    /* Temporary workaround for RHBZ#2082806 */
++    if (STREQ (cpu_model, "max")) {
++      start_list ("-cpu") {
++        append_list (cpu_model);
++        append_list ("la57=off");
++      } end_list ();
++    }
++    else
++#endif
++      arg ("-cpu", cpu_model);
++  }
+ 
+   if (g->smp > 1)
+     arg_format ("-smp", "%d", g->smp);
+diff --git a/lib/launch-libvirt.c b/lib/launch-libvirt.c
+index db619910f..bad4a54ea 100644
+--- a/lib/launch-libvirt.c
++++ b/lib/launch-libvirt.c
+@@ -1172,6 +1172,13 @@ construct_libvirt_xml_cpu (guestfs_h *g,
+       else if (STREQ (cpu_model, "max")) {
+         /* https://bugzilla.redhat.com/show_bug.cgi?id=1935572#c11 */
+         attribute ("mode", "maximum");
++#if defined(__x86_64__)
++        /* Temporary workaround for RHBZ#2082806 */
++        start_element ("feature") {
++          attribute ("policy", "disable");
++          attribute ("name", "la57");
++        } end_element ();
++#endif
+       }
+       else
+         single_element ("model", cpu_model);
+-- 
+2.31.1
+

@@ -1,0 +1,69 @@
+From cb2ac63562447e2780bd7103ed060fd6013b9054 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 7 Jul 2015 09:28:03 -0400
+Subject: [PATCH] RHEL 8: Reject use of libguestfs-winsupport features except
+ for virt-* tools (RHBZ#1240276).
+
+Fix the tests: it doesn't let us use guestfish for arbitrary Windows
+edits.
+---
+ generator/c.ml                             | 16 ++++++++++++++++
+ test-data/phony-guests/make-windows-img.sh |  1 +
+ tests/charsets/test-charset-fidelity.c     |  2 ++
+ 3 files changed, 19 insertions(+)
+
+diff --git a/generator/c.ml b/generator/c.ml
+index 86d3b26f8..a625361a9 100644
+--- a/generator/c.ml
++++ b/generator/c.ml
+@@ -1846,6 +1846,22 @@ and generate_client_actions actions () =
+     check_args_validity c_name style;
+     trace_call name c_name style;
+ 
++    (* RHEL 8 *)
++    if name = "mount" || name = "mount_ro" || name = "mount_options" ||
++       name = "mount_vfs" then (
++      pr "  if (g->program && !STRPREFIX (g->program, \"virt-\")) {\n";
++      pr "    CLEANUP_FREE char *vfs_type = guestfs_vfs_type (g, mountable);\n";
++      pr "    if (vfs_type && STREQ (vfs_type, \"ntfs\")) {\n";
++      pr "      error (g, \"mount: unsupported filesystem type\");\n";
++      pr "      if (trace_flag)\n";
++      pr "        guestfs_int_trace (g, \"%%s = %%s (error)\",\n";
++      pr "                              \"%s\", \"-1\");\n" name;
++      pr "      return %s;\n" (string_of_errcode errcode);
++      pr "    }\n";
++      pr "  }\n";
++      pr "\n";
++    );
++
+     (* Calculate the total size of all FileIn arguments to pass
+      * as a progress bar hint.
+      *)
+diff --git a/test-data/phony-guests/make-windows-img.sh b/test-data/phony-guests/make-windows-img.sh
+index 30908a918..73cf5144e 100755
+--- a/test-data/phony-guests/make-windows-img.sh
++++ b/test-data/phony-guests/make-windows-img.sh
+@@ -37,6 +37,7 @@ fi
+ 
+ # Create a disk image.
+ guestfish <<EOF
++set-program virt-testing
+ sparse windows.img-t 512M
+ run
+ 
+diff --git a/tests/charsets/test-charset-fidelity.c b/tests/charsets/test-charset-fidelity.c
+index 39ccc2068..2b2e2d8a9 100644
+--- a/tests/charsets/test-charset-fidelity.c
++++ b/tests/charsets/test-charset-fidelity.c
+@@ -94,6 +94,8 @@ main (int argc, char *argv[])
+   if (g == NULL)
+     error (EXIT_FAILURE, 0, "failed to create handle");
+ 
++  guestfs_set_program (g, "virt-testing");
++
+   if (guestfs_add_drive_scratch (g, 1024*1024*1024, -1) == -1)
+     exit (EXIT_FAILURE);
+ 
+-- 
+2.31.1
+

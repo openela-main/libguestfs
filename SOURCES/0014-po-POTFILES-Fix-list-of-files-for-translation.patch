@@ -1,0 +1,34 @@
+From 9664527c107d04aab416be87cc4fcd76dcbe5927 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Mon, 29 Mar 2021 18:25:13 +0100
+Subject: [PATCH] po/POTFILES: Fix list of files for translation.
+
+Fixes: commit c9ee831affed55abe0f928134cbbd2ed83b2f510
+(cherry picked from commit df983200d76bac37c811fbd2fb67e7ebe830e759)
+---
+ po/POTFILES | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/po/POTFILES b/po/POTFILES
+index 0782e8ceb..fdc6e8062 100644
+--- a/po/POTFILES
++++ b/po/POTFILES
+@@ -128,6 +128,7 @@ daemon/pingdaemon.c
+ daemon/proto.c
+ daemon/readdir.c
+ daemon/rename.c
++daemon/rpm-c.c
+ daemon/rsync.c
+ daemon/scrub.c
+ daemon/selinux-relabel.c
+@@ -353,7 +354,6 @@ lib/command.c
+ lib/conn-socket.c
+ lib/copy-in-out.c
+ lib/create.c
+-lib/dbdump.c
+ lib/drives.c
+ lib/errors.c
+ lib/event-string.c
+-- 
+2.31.1
+
