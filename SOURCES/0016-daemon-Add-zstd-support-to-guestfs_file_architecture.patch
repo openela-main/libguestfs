@@ -1,0 +1,182 @@
+From 4807dacb577167b89cb5ffb1fa1a68ddf30b9319 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 9 Aug 2022 18:39:30 +0100
+Subject: [PATCH] daemon: Add zstd support to guestfs_file_architecture
+
+This is required so we can determine the file architecture of
+zstd-compressed Linux kernel modules as used by OpenSUSE and maybe
+other distros in future.
+
+Note that zstd becomes a required package, but it is widely available
+in current Linux distros.
+
+The package names come from https://pkgs.org/download/zstd and my own
+research.
+
+(cherry picked from commit 0e784824e82a88e522873fec5db1a11943d637ed)
+---
+ .gitignore                  | 1 +
+ appliance/packagelist.in    | 6 ++++++
+ daemon/filearch.ml          | 1 +
+ docs/guestfs-building.pod   | 4 ++++
+ generator/actions_core.ml   | 2 ++
+ m4/guestfs-progs.m4         | 4 ++++
+ test-data/Makefile.am       | 1 +
+ test-data/files/Makefile.am | 6 ++++++
+ 8 files changed, 25 insertions(+)
+
+diff --git a/.gitignore b/.gitignore
+index 356c01fbd..ee5ea74dd 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -448,6 +448,7 @@ Makefile.in
+ /test-data/files/initrd-x86_64.img
+ /test-data/files/initrd-x86_64.img.gz
+ /test-data/files/lib-i586.so.xz
++/test-data/files/lib-i586.so.zst
+ /test-data/files/test-grep.txt.gz
+ /test-data/phony-guests/archlinux.img
+ /test-data/phony-guests/blank-*.img
+diff --git a/appliance/packagelist.in b/appliance/packagelist.in
+index 0b79edcdd..0fc11f6ae 100644
+--- a/appliance/packagelist.in
++++ b/appliance/packagelist.in
+@@ -48,6 +48,7 @@ ifelse(REDHAT,1,
+   vim-minimal
+   xz
+   zfs-fuse
++  zstd
+ )
+ 
+ ifelse(DEBIAN,1,
+@@ -88,6 +89,7 @@ dnl iproute has been renamed to iproute2
+   vim-tiny
+   xz-utils
+   zfs-fuse
++  zstd
+   uuid-runtime
+ )
+ 
+@@ -115,6 +117,7 @@ ifelse(ARCHLINUX,1,
+   systemd
+   vim
+   xz
++  zstd
+ )
+ 
+ ifelse(SUSE,1,
+@@ -140,6 +143,7 @@ ifelse(SUSE,1,
+   systemd-sysvinit
+   vim
+   xz
++  zstd
+ )
+ 
+ ifelse(FRUGALWARE,1,
+@@ -185,6 +189,7 @@ ifelse(MAGEIA,1,
+   systemd /* for /sbin/reboot and udevd */
+   vim-minimal
+   xz
++  zstd
+ )
+ 
+ ifelse(OPENMANDRIVA,1,
+@@ -203,6 +208,7 @@ ifelse(OPENMANDRIVA,1,
+   systemd /* for /sbin/reboot and udevd */
+   vim-minimal
+   xz
++  zstd
+ )
+ 
+ include(guestfsd.deps)
+diff --git a/daemon/filearch.ml b/daemon/filearch.ml
+index 67a7339e0..4d7e912c0 100644
+--- a/daemon/filearch.ml
++++ b/daemon/filearch.ml
+@@ -106,6 +106,7 @@ and cpio_arch magic orig_path path =
+     if String.find magic "gzip" >= 0 then "zcat"
+     else if String.find magic "bzip2" >= 0 then "bzcat"
+     else if String.find magic "XZ compressed" >= 0 then "xzcat"
++    else if String.find magic "Zstandard compressed" >= 0 then "zstdcat"
+     else "cat" in
+ 
+   let tmpdir = Mkdtemp.temp_dir "filearch" in
+diff --git a/docs/guestfs-building.pod b/docs/guestfs-building.pod
+index b93a611a6..7a7240f78 100644
+--- a/docs/guestfs-building.pod
++++ b/docs/guestfs-building.pod
+@@ -172,6 +172,10 @@ I<Required>.
+ 
+ I<Required>.
+ 
++=item zstd
++
++I<Required>.
++
+ =item Jansson E<ge> 2.7
+ 
+ I<Required>.
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index 3c9b0a9b2..553e4ec3b 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -9373,6 +9373,8 @@ with large files, such as the resulting squashfs will be over 3GB big." };
+         [["file_architecture"; "/bin-x86_64-dynamic.gz"]], "x86_64"), [];
+       InitISOFS, Always, TestResultString (
+         [["file_architecture"; "/lib-i586.so.xz"]], "i386"), [];
++      InitISOFS, Always, TestResultString (
++        [["file_architecture"; "/lib-i586.so.zst"]], "i386"), [];
+     ];
+     shortdesc = "detect the architecture of a binary file";
+     longdesc = "\
+diff --git a/m4/guestfs-progs.m4 b/m4/guestfs-progs.m4
+index cd8662e86..22fc61367 100644
+--- a/m4/guestfs-progs.m4
++++ b/m4/guestfs-progs.m4
+@@ -95,6 +95,10 @@ AC_PATH_PROGS([XZCAT],[xzcat],[no])
+ test "x$XZCAT" = "xno" && AC_MSG_ERROR([xzcat must be installed])
+ AC_DEFINE_UNQUOTED([XZCAT],["$XZCAT"],[Name of xzcat program.])
+ 
++dnl Check for zstdcat (required).
++AC_PATH_PROGS([ZSTDCAT],[zstdcat],[no])
++test "x$ZSTDCAT" = "xno" && AC_MSG_ERROR([zstdcat must be installed])
++
+ dnl (f)lex and bison for virt-builder (required).
+ dnl XXX Could be optional with some work.
+ AC_PROG_LEX
+diff --git a/test-data/Makefile.am b/test-data/Makefile.am
+index b603311a1..dbecd74b9 100644
+--- a/test-data/Makefile.am
++++ b/test-data/Makefile.am
+@@ -85,6 +85,7 @@ image_files = \
+ 	files/initrd-x86_64.img \
+ 	files/initrd-x86_64.img.gz \
+ 	files/lib-i586.so.xz \
++	files/lib-i586.so.zst \
+ 	files/test-grep.txt.gz
+ 
+ noinst_DATA = test.iso
+diff --git a/test-data/files/Makefile.am b/test-data/files/Makefile.am
+index a3d7288f9..06b0c6585 100644
+--- a/test-data/files/Makefile.am
++++ b/test-data/files/Makefile.am
+@@ -40,6 +40,7 @@ noinst_DATA = \
+ 	initrd-x86_64.img \
+ 	initrd-x86_64.img.gz \
+ 	lib-i586.so.xz \
++	lib-i586.so.zst \
+ 	test-grep.txt.gz
+ 
+ CLEANFILES += $(noinst_DATA)
+@@ -116,3 +117,8 @@ lib-i586.so.xz: $(top_srcdir)/test-data/binaries/lib-i586.so
+ 	rm -f $@ $@-t
+ 	xz -c $< > $@-t
+ 	mv $@-t $@
++
++lib-i586.so.zst: $(top_srcdir)/test-data/binaries/lib-i586.so
++	rm -f $@ $@-t
++	zstd -c $< > $@-t
++	mv $@-t $@
+-- 
+2.31.1
+

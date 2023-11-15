@@ -1,0 +1,82 @@
+From 363bbb7e9bd39fc1683fb600c76266f67ad2063c Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 1 Dec 2022 10:14:43 +0000
+Subject: [PATCH] lib: Return correct osinfo field for Windows 11
+
+For Windows Client, we can only distinguish between Windows 10 and
+Windows 11 using the build ID.  The product name in both cases is
+"Windows 10 <something>", apparently intentionally.
+
+References:
+https://learn.microsoft.com/en-us/answers/questions/586619/windows-11-build-ver-is-still-10022000194.html
+https://github.com/cygwin/cygwin/blob/a263fe0b268580273c1adc4b1bad256147990222/winsup/cygwin/wincap.cc#L429
+https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions
+
+After this fix, the output of virt-inspector changes to this, which is
+a bit odd, but correct:
+
+    <name>windows</name>
+    <arch>x86_64</arch>
+    <distro>windows</distro>
+    <product_name>Windows 10 Pro</product_name>
+    <product_variant>Client</product_variant>
+    <major_version>10</major_version>
+    <minor_version>0</minor_version>
+    <windows_systemroot>/Windows</windows_systemroot>
+    <windows_current_control_set>ControlSet001</windows_current_control_set>
+    <osinfo>win11</osinfo>
+
+Thanks: Yaakov Selkowitz
+Reported-by: Yongkui Guo
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2012658
+Reviewed-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 824c7457489366494f0f10fd3369dc30f3a3c360)
+---
+ lib/inspect-osinfo.c | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/lib/inspect-osinfo.c b/lib/inspect-osinfo.c
+index 90e57e6df..1c10ff469 100644
+--- a/lib/inspect-osinfo.c
++++ b/lib/inspect-osinfo.c
+@@ -86,6 +86,8 @@ guestfs_impl_inspect_get_osinfo (guestfs_h *g, const char *root)
+   else if (STREQ (type, "windows")) {
+     CLEANUP_FREE char *product_name = NULL;
+     CLEANUP_FREE char *product_variant = NULL;
++    CLEANUP_FREE char *build_id_str = NULL;
++    int build_id;
+ 
+     product_name = guestfs_inspect_get_product_name (g, root);
+     if (!product_name)
+@@ -142,8 +144,26 @@ guestfs_impl_inspect_get_osinfo (guestfs_h *g, const char *root)
+             return safe_strdup (g, "win2k19");
+           else
+             return safe_strdup (g, "win2k16");
+-        } else
+-          return safe_strdup (g, "win10");
++        }
++        else {
++          /* For Windows >= 10 Client we can only distinguish between
++           * versions by looking at the build ID.  See:
++           * https://learn.microsoft.com/en-us/answers/questions/586619/windows-11-build-ver-is-still-10022000194.html
++           * https://github.com/cygwin/cygwin/blob/a263fe0b268580273c1adc4b1bad256147990222/winsup/cygwin/wincap.cc#L429
++           */
++          build_id_str = guestfs_inspect_get_build_id (g, root);
++          if (!build_id_str)
++            return NULL;
++
++          build_id = guestfs_int_parse_unsigned_int (g, build_id_str);
++          if (build_id == -1)
++            return NULL;
++
++          if (build_id >= 22000)
++            return safe_strdup (g, "win11");
++          else
++            return safe_strdup (g, "win10");
++        }
+       }
+       break;
+     }
+-- 
+2.31.1
+

@@ -1,0 +1,184 @@
+From 7dbcddd5bd5939493db74843593316f7101f8fde Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 1 Dec 2022 10:00:46 +0000
+Subject: [PATCH] New API: inspect_get_build_id
+
+Add an API to return the build ID of the guest.  This to allow a
+future change to be able to distinguish between Windows 10 and Windows 11
+which can only be done using the build ID.
+
+For Windows we can read the CurrentBuildNumber key from the registry.
+For Linux there happens to be a BUILD_ID field in /etc/os-release.
+I've never seen a Linux distro that actually uses this.
+
+Reviewed-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit f3dd67affe3c657af64ee9f6d70a16e965309556)
+---
+ daemon/inspect.ml               |  6 ++++++
+ daemon/inspect_fs_unix.ml       |  2 ++
+ daemon/inspect_fs_windows.ml    | 14 ++++++++++++++
+ daemon/inspect_types.ml         |  5 +++++
+ daemon/inspect_types.mli        |  1 +
+ generator/actions_inspection.ml | 19 +++++++++++++++++++
+ generator/proc_nr.ml            |  3 ++-
+ lib/MAX_PROC_NR                 |  2 +-
+ 8 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/daemon/inspect.ml b/daemon/inspect.ml
+index fb75b4a6c..20217c025 100644
+--- a/daemon/inspect.ml
++++ b/daemon/inspect.ml
+@@ -335,6 +335,12 @@ and inspect_get_hostname root =
+   | Some v -> v
+   | None -> "unknown"
+ 
++and inspect_get_build_id root =
++  let root = search_for_root root in
++  match root.inspection_data.build_id with
++  | Some v -> v
++  | None -> "unknown"
++
+ and inspect_get_windows_systemroot root =
+   let root = search_for_root root in
+   match root.inspection_data.windows_systemroot with
+diff --git a/daemon/inspect_fs_unix.ml b/daemon/inspect_fs_unix.ml
+index 63cb279d0..009195f80 100644
+--- a/daemon/inspect_fs_unix.ml
++++ b/daemon/inspect_fs_unix.ml
+@@ -96,6 +96,8 @@ let rec parse_os_release release_file data =
+            data.product_name <- Some value
+          else if key = "VERSION_ID" then
+            parse_os_release_version_id value data
++         else if key = "BUILD_ID" then
++           data.build_id <- Some value
+        ) values;
+ 
+      (* If we haven't got all the fields, exit right away. *)
+diff --git a/daemon/inspect_fs_windows.ml b/daemon/inspect_fs_windows.ml
+index c4a05bc38..7bc5de7f7 100644
+--- a/daemon/inspect_fs_windows.ml
++++ b/daemon/inspect_fs_windows.ml
+@@ -263,6 +263,20 @@ and check_windows_software_registry software_hive data =
+          with
+            Not_found -> ()
+         );
++
++        (* CurrentBuildNumber (build_id).
++         *
++         * In modern Windows, the "CurrentBuild" and "CurrentBuildNumber"
++         * keys are the same.  But in Windows XP, "CurrentBuild"
++         * contained something quite different.  So always use
++         * "CurrentBuildNumber".
++         *)
++        (try
++           let v = List.assoc "CurrentBuildNumber" values in
++           data.build_id <- Some (Hivex.value_string h v)
++         with
++           Not_found -> ()
++        );
+       with
+       | Not_found ->
+          if verbose () then
+diff --git a/daemon/inspect_types.ml b/daemon/inspect_types.ml
+index 9395c51f9..328a2146b 100644
+--- a/daemon/inspect_types.ml
++++ b/daemon/inspect_types.ml
+@@ -48,6 +48,7 @@ and inspection_data = {
+   mutable version : version option;
+   mutable arch : string option;
+   mutable hostname : string option;
++  mutable build_id : string option;
+   mutable fstab : fstab_entry list;
+   mutable windows_systemroot : string option;
+   mutable windows_software_hive : string option;
+@@ -167,6 +168,8 @@ and string_of_inspection_data data =
+              data.arch;
+   Option.may (fun v -> bpf "    hostname: %s\n" v)
+              data.hostname;
++  Option.may (fun v -> bpf "    build ID: %s\n" v)
++             data.build_id;
+   if data.fstab <> [] then (
+     let v = List.map (
+       fun (a, b) -> sprintf "(%s, %s)" (Mountable.to_string a) b
+@@ -272,6 +275,7 @@ let null_inspection_data = {
+   version = None;
+   arch = None;
+   hostname = None;
++  build_id = None;
+   fstab = [];
+   windows_systemroot = None;
+   windows_software_hive = None;
+@@ -294,6 +298,7 @@ let merge_inspection_data child parent =
+   parent.version <-         merge child.version parent.version;
+   parent.arch <-            merge child.arch parent.arch;
+   parent.hostname <-        merge child.hostname parent.hostname;
++  parent.build_id <-        merge child.build_id parent.build_id;
+   parent.fstab <-           child.fstab @ parent.fstab;
+   parent.windows_systemroot <-
+     merge child.windows_systemroot parent.windows_systemroot;
+diff --git a/daemon/inspect_types.mli b/daemon/inspect_types.mli
+index 29c76e8ab..05a3ffd4e 100644
+--- a/daemon/inspect_types.mli
++++ b/daemon/inspect_types.mli
+@@ -51,6 +51,7 @@ and inspection_data = {
+   mutable version : version option;
+   mutable arch : string option;
+   mutable hostname : string option;
++  mutable build_id : string option;
+   mutable fstab : fstab_entry list;
+   mutable windows_systemroot : string option;
+   mutable windows_software_hive : string option;
+diff --git a/generator/actions_inspection.ml b/generator/actions_inspection.ml
+index f8b744993..70de22ec0 100644
+--- a/generator/actions_inspection.ml
++++ b/generator/actions_inspection.ml
+@@ -529,6 +529,25 @@ hive is a valid Windows Registry hive.
+ 
+ You can use C<guestfs_hivex_open> to read or write to the hive.
+ 
++Please read L<guestfs(3)/INSPECTION> for more details." };
++
++  { defaults with
++    name = "inspect_get_build_id"; added = (1, 49, 8);
++    style = RString (RPlainString, "buildid"), [String (Mountable, "root")], [];
++    impl = OCaml "Inspect.inspect_get_build_id";
++    shortdesc = "get the system build ID";
++    longdesc = "\
++This returns the build ID of the system, or the string
++C<\"unknown\"> if the system does not have a build ID.
++
++For Windows, this gets the build number.  Although it is
++returned as a string, it is (so far) always a number.  See
++L<https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions>
++for some possible values.
++
++For Linux, this returns the C<BUILD_ID> string from
++F</etc/os-release>, although this is not often used.
++
+ Please read L<guestfs(3)/INSPECTION> for more details." };
+ 
+   { defaults with
+diff --git a/generator/proc_nr.ml b/generator/proc_nr.ml
+index edd9bd99d..0f17b1c06 100644
+--- a/generator/proc_nr.ml
++++ b/generator/proc_nr.ml
+@@ -514,7 +514,8 @@ let proc_nr = [
+ 509, "cryptsetup_close";
+ 510, "internal_list_rpm_applications";
+ 511, "internal_readdir";
+-512, "clevis_luks_unlock"
++512, "clevis_luks_unlock";
++513, "inspect_get_build_id";
+ ]
+ 
+ (* End of list.  If adding a new entry, add it at the end of the list
+diff --git a/lib/MAX_PROC_NR b/lib/MAX_PROC_NR
+index 4d0e90cbc..31cf34b8d 100644
+--- a/lib/MAX_PROC_NR
++++ b/lib/MAX_PROC_NR
+@@ -1 +1 @@
+-512
++513
+-- 
+2.31.1
+

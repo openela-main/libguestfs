@@ -1,0 +1,32 @@
+From c1ff450bcee1465f0eaca00a4d6c8c731f175488 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 29 Jun 2021 15:29:11 +0100
+Subject: [PATCH] RHEL: Create /etc/crypto-policies/back-ends/opensslcnf.config
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1977214#c13
+---
+ appliance/init | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/appliance/init b/appliance/init
+index 19aa151b7..e67d88280 100755
+--- a/appliance/init
++++ b/appliance/init
+@@ -76,6 +76,14 @@ if ! test -e /etc/mtab; then
+   ln -s /proc/mounts /etc/mtab
+ fi
+ 
++# openssl 3 requires /etc/crypto-policies/back-ends/opensslcnf.config
++# to exist, but it is created in a %post script in crypto-policies
++# https://bugzilla.redhat.com/show_bug.cgi?id=1977214#c13
++if ! test -r /etc/crypto-policies/back-ends/opensslcnf.config &&
++     test -f /usr/share/crypto-policies/DEFAULT/opensslcnf.txt; then
++  ln -s /usr/share/crypto-policies/DEFAULT/opensslcnf.txt /etc/crypto-policies/back-ends/opensslcnf.config
++fi
++
+ # Static nodes must happen before udev is started.
+ 
+ # Set up kmod static-nodes (RHBZ#1011907).
+-- 
+2.31.1
+

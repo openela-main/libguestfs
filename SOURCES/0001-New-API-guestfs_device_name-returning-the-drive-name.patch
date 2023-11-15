@@ -1,0 +1,96 @@
+From e3ebd50abde3b05db86c8965868c866152cd3287 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 28 Apr 2022 13:16:54 +0100
+Subject: [PATCH] New API: guestfs_device_name returning the drive name
+
+For each drive added, return the name.  For example calling this with
+index 0 will return the string "/dev/sda".  I called it
+guestfs_device_name (not drive_name) for consistency with the existing
+guestfs_device_index function.
+
+You don't really need to call this function.  You can follow the
+advice here:
+https://libguestfs.org/guestfs.3.html#block-device-naming
+and assume that drives are added with predictable names like
+"/dev/sda", "/dev/sdb", etc.
+
+However it's useful to expose the internal guestfs_int_drive_name
+function since especially handling names beyond index 26 is tricky
+(https://rwmj.wordpress.com/2011/01/09/how-are-linux-drives-named-beyond-drive-26-devsdz/)
+
+Fixes: https://github.com/libguestfs/libguestfs/issues/80
+Reviewed-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit ac00e603f83802634f1d53b1629aee4670eaf31c)
+---
+ generator/actions_core.ml | 24 +++++++++++++++++++++++-
+ lib/drives.c              | 15 +++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index ce9ee39cc..dc12fdc33 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -737,7 +737,29 @@ returns the index of the device in the list of devices.
+ Index numbers start from 0.  The named device must exist,
+ for example as a string returned from C<guestfs_list_devices>.
+ 
+-See also C<guestfs_list_devices>, C<guestfs_part_to_dev>." };
++See also C<guestfs_list_devices>, C<guestfs_part_to_dev>,
++C<guestfs_device_name>." };
++
++  { defaults with
++    name = "device_name"; added = (1, 49, 1);
++    style = RString (RPlainString, "name"), [Int "index"], [];
++    tests = [
++      InitEmpty, Always, TestResult (
++        [["device_name"; "0"]], "STREQ (ret, \"/dev/sda\")"), [];
++      InitEmpty, Always, TestResult (
++        [["device_name"; "1"]], "STREQ (ret, \"/dev/sdb\")"), [];
++      InitEmpty, Always, TestLastFail (
++        [["device_name"; "99"]]), []
++    ];
++    shortdesc = "convert device index to name";
++    longdesc = "\
++This function takes a device index and returns the device
++name.  For example index C<0> will return the string C</dev/sda>.
++
++The drive index must have been added to the handle.
++
++See also C<guestfs_list_devices>, C<guestfs_part_to_dev>,
++C<guestfs_device_index>." };
+ 
+   { defaults with
+     name = "shutdown"; added = (1, 19, 16);
+diff --git a/lib/drives.c b/lib/drives.c
+index fd95308d2..a6179fc36 100644
+--- a/lib/drives.c
++++ b/lib/drives.c
+@@ -31,6 +31,7 @@
+ #include <netdb.h>
+ #include <arpa/inet.h>
+ #include <assert.h>
++#include <errno.h>
+ #include <libintl.h>
+ 
+ #include "c-ctype.h"
+@@ -1084,3 +1085,17 @@ guestfs_impl_device_index (guestfs_h *g, const char *device)
+     error (g, _("%s: device not found"), device);
+   return r;
+ }
++
++char *
++guestfs_impl_device_name (guestfs_h *g, int index)
++{
++  char drive_name[64];
++
++  if (index < 0 || index >= g->nr_drives) {
++    guestfs_int_error_errno (g, EINVAL, _("drive index out of range"));
++    return NULL;
++  }
++
++  guestfs_int_drive_name (index, drive_name);
++  return safe_asprintf (g, "/dev/sd%s", drive_name);
++}
+-- 
+2.31.1
+
