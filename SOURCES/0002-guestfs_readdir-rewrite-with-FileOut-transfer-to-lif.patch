@@ -1,0 +1,565 @@
+From b97b90779d5ea261d5e737f073bb4ec5dc546511 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Mon, 2 May 2022 10:56:00 +0200
+Subject: [PATCH] guestfs_readdir(): rewrite with FileOut transfer, to lift
+ protocol limit
+
+Currently the guestfs_readdir() API can not list long directories, due to
+it sending back the whole directory listing in a single guestfs protocol
+response, which is limited to GUESTFS_MESSAGE_MAX (approx. 4MB) in size.
+
+Introduce the "internal_readdir" action, for transferring the directory
+listing from the daemon to the library through a FileOut parameter.
+Rewrite guestfs_readdir() on top of this new internal function:
+
+- The new "internal_readdir" action is a daemon action. Do not repurpose
+  the "readdir" proc_nr (138) for "internal_readdir", as some distros ship
+  the binary appliance to their users, and reusing the proc_nr could
+  create a mismatch between library & appliance with obscure symptoms.
+  Replace the old proc_nr (138) with a new proc_nr (511) instead; a
+  mismatch would then produce a clear error message. Assume the new action
+  will first be released in libguestfs-1.48.2.
+
+- Turn "readdir" from a daemon action into a non-daemon one. Call the
+  daemon action guestfs_internal_readdir() manually, receive the FileOut
+  parameter into a temp file, then deserialize the dirents array from the
+  temp file.
+
+This patch sneakily fixes an independent bug, too. In the pre-patch
+do_readdir() function [daemon/readdir.c], when readdir() returns NULL, we
+don't distinguish "end of directory stream" from "readdir() failed". This
+rewrite fixes this problem -- I didn't see much value separating out the
+fix for the original do_readdir().
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1674392
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Message-Id: <20220502085601.15012-2-lersek@redhat.com>
+Reviewed-by: Richard W.M. Jones <rjones@redhat.com>
+(cherry picked from commit 45b7f1736b64e9f0741e21e5a9d83a837bd863bf)
+---
+ TODO                      |   8 ---
+ daemon/readdir.c          | 132 +++++++++++++++++++-------------------
+ generator/actions_core.ml | 127 +++++++++++++++++++-----------------
+ generator/proc_nr.ml      |   2 +-
+ lib/MAX_PROC_NR           |   2 +-
+ lib/Makefile.am           |   1 +
+ lib/readdir.c             | 131 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 267 insertions(+), 136 deletions(-)
+ create mode 100644 lib/readdir.c
+
+diff --git a/TODO b/TODO
+index a50f7d73c..513e55f92 100644
+--- a/TODO
++++ b/TODO
+@@ -484,14 +484,6 @@ this approach works, it doesn't solve the MBR problem, so likely we'd
+ have to write a library for that (or perhaps go back to sfdisk but
+ using a very abstracted interface over sfdisk).
+ 
+-Reimplement some APIs to avoid protocol limits
+-----------------------------------------------
+-
+-Mostly this item was done (eg. commits a69f44f56f and before).  The
+-most notable API with a protocol limit remaining is:
+-
+- - guestfs_readdir
+-
+ hivex
+ -----
+ 
+diff --git a/daemon/readdir.c b/daemon/readdir.c
+index e488f93e7..9ab0b0aec 100644
+--- a/daemon/readdir.c
++++ b/daemon/readdir.c
+@@ -16,77 +16,67 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+  */
+ 
+-#include <config.h>
++#include <config.h> /* HAVE_STRUCT_DIRENT_D_TYPE */
+ 
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <string.h>
+-#include <unistd.h>
+-#include <dirent.h>
++#include <dirent.h>    /* readdir() */
++#include <errno.h>     /* errno */
++#include <rpc/xdr.h>   /* xdrmem_create() */
++#include <stdio.h>     /* perror() */
++#include <stdlib.h>    /* malloc() */
++#include <sys/types.h> /* opendir() */
+ 
+-#include "daemon.h"
+-#include "actions.h"
++#include "daemon.h" /* reply_with_perror() */
+ 
+-static void
+-free_int_dirent_list (guestfs_int_dirent *p, size_t len)
++/* Has one FileOut parameter. */
++int
++do_internal_readdir (const char *dir)
+ {
+-  size_t i;
++  int ret;
++  DIR *dirstream;
++  void *xdr_buf;
++  XDR xdr;
+ 
+-  for (i = 0; i < len; ++i) {
+-    free (p[i].name);
+-  }
+-  free (p);
+-}
+-
+-guestfs_int_dirent_list *
+-do_readdir (const char *path)
+-{
+-  guestfs_int_dirent_list *ret;
+-  guestfs_int_dirent v;
+-  DIR *dir;
+-  struct dirent *d;
+-  size_t i;
+-
+-  ret = malloc (sizeof *ret);
+-  if (ret == NULL) {
+-    reply_with_perror ("malloc");
+-    return NULL;
+-  }
+-
+-  ret->guestfs_int_dirent_list_len = 0;
+-  ret->guestfs_int_dirent_list_val = NULL;
++  /* Prepare to fail. */
++  ret = -1;
+ 
+   CHROOT_IN;
+-  dir = opendir (path);
++  dirstream = opendir (dir);
+   CHROOT_OUT;
+ 
+-  if (dir == NULL) {
+-    reply_with_perror ("opendir: %s", path);
+-    free (ret);
+-    return NULL;
++  if (dirstream == NULL) {
++    reply_with_perror ("opendir: %s", dir);
++    return ret;
+   }
+ 
+-  i = 0;
+-  while ((d = readdir (dir)) != NULL) {
+-    guestfs_int_dirent *p;
++  xdr_buf = malloc (GUESTFS_MAX_CHUNK_SIZE);
++  if (xdr_buf == NULL) {
++    reply_with_perror ("malloc");
++    goto close_dir;
++  }
++  xdrmem_create (&xdr, xdr_buf, GUESTFS_MAX_CHUNK_SIZE, XDR_ENCODE);
++
++  /* Send an "OK" reply, before starting the file transfer. */
++  reply (NULL, NULL);
++
++  /* From this point on, we can only report errors by canceling the file
++   * transfer.
++   */
++  for (;;) {
++    struct dirent *d;
++    guestfs_int_dirent v;
++
++    errno = 0;
++    d = readdir (dirstream);
++    if (d == NULL) {
++      if (errno == 0)
++        ret = 0;
++      else
++        perror ("readdir");
+ 
+-    p = realloc (ret->guestfs_int_dirent_list_val,
+-                 sizeof (guestfs_int_dirent) * (i+1));
+-    v.name = strdup (d->d_name);
+-    if (!p || !v.name) {
+-      reply_with_perror ("allocate");
+-      if (p) {
+-        free_int_dirent_list (p, i);
+-      } else {
+-        free_int_dirent_list (ret->guestfs_int_dirent_list_val, i);
+-      }
+-      free (v.name);
+-      free (ret);
+-      closedir (dir);
+-      return NULL;
++      break;
+     }
+-    ret->guestfs_int_dirent_list_val = p;
+ 
++    v.name = d->d_name;
+     v.ino = d->d_ino;
+ #ifdef HAVE_STRUCT_DIRENT_D_TYPE
+     switch (d->d_type) {
+@@ -104,19 +94,29 @@ do_readdir (const char *path)
+     v.ftyp = 'u';
+ #endif
+ 
+-    ret->guestfs_int_dirent_list_val[i] = v;
++    if (!xdr_guestfs_int_dirent (&xdr, &v)) {
++      fprintf (stderr, "xdr_guestfs_int_dirent failed\n");
++      break;
++    }
+ 
+-    i++;
++    if (send_file_write (xdr_buf, xdr_getpos (&xdr)) != 0)
++      break;
++
++    xdr_setpos (&xdr, 0);
+   }
+ 
+-  ret->guestfs_int_dirent_list_len = i;
++  /* Finish or cancel the transfer. Note that if (ret == -1) because the library
++   * canceled, we still need to cancel back!
++   */
++  send_file_end (ret == -1);
+ 
+-  if (closedir (dir) == -1) {
+-    reply_with_perror ("closedir");
+-    free (ret->guestfs_int_dirent_list_val);
+-    free (ret);
+-    return NULL;
+-  }
++  xdr_destroy (&xdr);
++  free (xdr_buf);
++
++close_dir:
++  if (closedir (dirstream) == -1)
++    /* Best we can do here is log an error. */
++    perror ("closedir");
+ 
+   return ret;
+ }
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index dc12fdc33..807150615 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -141,6 +141,66 @@ only useful for printing debug and internal error messages.
+ 
+ For more information on states, see L<guestfs(3)>." };
+ 
++  { defaults with
++    name = "readdir"; added = (1, 0, 55);
++    style = RStructList ("entries", "dirent"), [String (Pathname, "dir")], [];
++    progress = true; cancellable = true;
++    shortdesc = "read directories entries";
++    longdesc = "\
++This returns the list of directory entries in directory C<dir>.
++
++All entries in the directory are returned, including C<.> and
++C<..>.  The entries are I<not> sorted, but returned in the same
++order as the underlying filesystem.
++
++Also this call returns basic file type information about each
++file.  The C<ftyp> field will contain one of the following characters:
++
++=over 4
++
++=item 'b'
++
++Block special
++
++=item 'c'
++
++Char special
++
++=item 'd'
++
++Directory
++
++=item 'f'
++
++FIFO (named pipe)
++
++=item 'l'
++
++Symbolic link
++
++=item 'r'
++
++Regular file
++
++=item 's'
++
++Socket
++
++=item 'u'
++
++Unknown file type
++
++=item '?'
++
++The L<readdir(3)> call returned a C<d_type> field with an
++unexpected value
++
++=back
++
++This function is primarily intended for use by programs.  To
++get a simple list of names, use C<guestfs_ls>.  To get a printable
++directory for human consumption, use C<guestfs_ll>." };
++
+   { defaults with
+     name = "version"; added = (1, 0, 58);
+     style = RStruct ("version", "version"), [], [];
+@@ -3939,66 +3999,6 @@ L<umask(2)>, C<guestfs_mknod>, C<guestfs_mkdir>.
+ 
+ This call returns the previous umask." };
+ 
+-  { defaults with
+-    name = "readdir"; added = (1, 0, 55);
+-    style = RStructList ("entries", "dirent"), [String (Pathname, "dir")], [];
+-    protocol_limit_warning = true;
+-    shortdesc = "read directories entries";
+-    longdesc = "\
+-This returns the list of directory entries in directory C<dir>.
+-
+-All entries in the directory are returned, including C<.> and
+-C<..>.  The entries are I<not> sorted, but returned in the same
+-order as the underlying filesystem.
+-
+-Also this call returns basic file type information about each
+-file.  The C<ftyp> field will contain one of the following characters:
+-
+-=over 4
+-
+-=item 'b'
+-
+-Block special
+-
+-=item 'c'
+-
+-Char special
+-
+-=item 'd'
+-
+-Directory
+-
+-=item 'f'
+-
+-FIFO (named pipe)
+-
+-=item 'l'
+-
+-Symbolic link
+-
+-=item 'r'
+-
+-Regular file
+-
+-=item 's'
+-
+-Socket
+-
+-=item 'u'
+-
+-Unknown file type
+-
+-=item '?'
+-
+-The L<readdir(3)> call returned a C<d_type> field with an
+-unexpected value
+-
+-=back
+-
+-This function is primarily intended for use by programs.  To
+-get a simple list of names, use C<guestfs_ls>.  To get a printable
+-directory for human consumption, use C<guestfs_ll>." };
+-
+   { defaults with
+     name = "getxattrs"; added = (1, 0, 59);
+     style = RStructList ("xattrs", "xattr"), [String (Pathname, "path")], [];
+@@ -9713,4 +9713,11 @@ C<guestfs_cryptsetup_open>.  The C<device> parameter must be
+ the name of the mapping device (ie. F</dev/mapper/mapname>)
+ and I<not> the name of the underlying block device." };
+ 
++  { defaults with
++    name = "internal_readdir"; added = (1, 48, 2);
++    style = RErr, [String (Pathname, "dir"); String (FileOut, "filename")], [];
++    visibility = VInternal;
++    shortdesc = "read directories entries";
++    longdesc = "Internal function for readdir." };
++
+ ]
+diff --git a/generator/proc_nr.ml b/generator/proc_nr.ml
+index b20672ff0..bdced51c9 100644
+--- a/generator/proc_nr.ml
++++ b/generator/proc_nr.ml
+@@ -152,7 +152,6 @@ let proc_nr = [
+ 135, "mknod_b";
+ 136, "mknod_c";
+ 137, "umask";
+-138, "readdir";
+ 139, "sfdiskM";
+ 140, "zfile";
+ 141, "getxattrs";
+@@ -514,6 +513,7 @@ let proc_nr = [
+ 508, "cryptsetup_open";
+ 509, "cryptsetup_close";
+ 510, "internal_list_rpm_applications";
++511, "internal_readdir";
+ ]
+ 
+ (* End of list.  If adding a new entry, add it at the end of the list
+diff --git a/lib/MAX_PROC_NR b/lib/MAX_PROC_NR
+index 2bc4cd64b..c0556fb20 100644
+--- a/lib/MAX_PROC_NR
++++ b/lib/MAX_PROC_NR
+@@ -1 +1 @@
+-510
++511
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index 144c45588..212bcb94a 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -105,6 +105,7 @@ libguestfs_la_SOURCES = \
+ 	private-data.c \
+ 	proto.c \
+ 	qemu.c \
++	readdir.c \
+ 	rescue.c \
+ 	stringsbuf.c \
+ 	structs-compare.c \
+diff --git a/lib/readdir.c b/lib/readdir.c
+new file mode 100644
+index 000000000..9cb0d7cf6
+--- /dev/null
++++ b/lib/readdir.c
+@@ -0,0 +1,131 @@
++/* libguestfs
++ * Copyright (C) 2016-2022 Red Hat Inc.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include <config.h> /* UNIX_PATH_MAX, needed by "guestfs-internal.h" */
++
++#include <rpc/xdr.h> /* xdrstdio_create() */
++#include <stdint.h>  /* UINT32_MAX */
++#include <stdio.h>   /* fopen() */
++#include <string.h>  /* memset() */
++
++#include "guestfs.h"                  /* guestfs_internal_readdir() */
++#include "guestfs_protocol.h"         /* guestfs_int_dirent */
++#include "guestfs-internal.h"         /* guestfs_int_make_temp_path() */
++#include "guestfs-internal-actions.h" /* guestfs_impl_readdir */
++
++struct guestfs_dirent_list *
++guestfs_impl_readdir (guestfs_h *g, const char *dir)
++{
++  struct guestfs_dirent_list *ret;
++  char *tmpfn;
++  FILE *f;
++  off_t fsize;
++  XDR xdr;
++  struct guestfs_dirent_list *dirents;
++  uint32_t alloc_entries;
++  size_t alloc_bytes;
++
++  /* Prepare to fail. */
++  ret = NULL;
++
++  tmpfn = guestfs_int_make_temp_path (g, "readdir", NULL);
++  if (tmpfn == NULL)
++    return ret;
++
++  if (guestfs_internal_readdir (g, dir, tmpfn) == -1)
++    goto drop_tmpfile;
++
++  f = fopen (tmpfn, "r");
++  if (f == NULL) {
++    perrorf (g, "fopen: %s", tmpfn);
++    goto drop_tmpfile;
++  }
++
++  if (fseeko (f, 0, SEEK_END) == -1) {
++    perrorf (g, "fseeko");
++    goto close_tmpfile;
++  }
++  fsize = ftello (f);
++  if (fsize == -1) {
++    perrorf (g, "ftello");
++    goto close_tmpfile;
++  }
++  if (fseeko (f, 0, SEEK_SET) == -1) {
++    perrorf (g, "fseeko");
++    goto close_tmpfile;
++  }
++
++  xdrstdio_create (&xdr, f, XDR_DECODE);
++
++  dirents = safe_malloc (g, sizeof *dirents);
++  dirents->len = 0;
++  alloc_entries = 8;
++  alloc_bytes = alloc_entries * sizeof *dirents->val;
++  dirents->val = safe_malloc (g, alloc_bytes);
++
++  while (xdr_getpos (&xdr) < fsize) {
++    guestfs_int_dirent v;
++    struct guestfs_dirent *d;
++
++    if (dirents->len == alloc_entries) {
++      if (alloc_entries > UINT32_MAX / 2 || alloc_bytes > (size_t)-1 / 2) {
++        error (g, "integer overflow");
++        goto free_dirents;
++      }
++      alloc_entries *= 2u;
++      alloc_bytes *= 2u;
++      dirents->val = safe_realloc (g, dirents->val, alloc_bytes);
++    }
++
++    /* Decoding does not work unless the target buffer is zero-initialized. */
++    memset (&v, 0, sizeof v);
++    if (!xdr_guestfs_int_dirent (&xdr, &v)) {
++      error (g, "xdr_guestfs_int_dirent failed");
++      goto free_dirents;
++    }
++
++    d = &dirents->val[dirents->len];
++    d->ino = v.ino;
++    d->ftyp = v.ftyp;
++    d->name = v.name; /* transfer malloc'd string to "d" */
++
++    dirents->len++;
++  }
++
++  /* Success; transfer "dirents" to "ret". */
++  ret = dirents;
++  dirents = NULL;
++
++  /* Clean up. */
++  xdr_destroy (&xdr);
++
++free_dirents:
++  guestfs_free_dirent_list (dirents);
++
++close_tmpfile:
++  fclose (f);
++
++drop_tmpfile:
++  /* In case guestfs_internal_readdir() failed, it may or may not have created
++   * the temporary file.
++   */
++  unlink (tmpfn);
++  free (tmpfn);
++
++  return ret;
++}
+-- 
+2.31.1
+

@@ -1,0 +1,69 @@
+From 5ae97d7d83d8cdb6e8428774282167dd774aaf70 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Thu, 30 Jun 2022 14:20:48 +0200
+Subject: [PATCH] guestfish, guestmount: enable networking for "--key
+ ID:clevis"
+
+Call the C-language helper key_store_requires_network() in guestfish and
+guestmount.
+
+(Short log for the "common" submodule, commit range
+35467027f657..af6cb55bc58a:
+
+Laszlo Ersek (12):
+      options: fix UUID comparison logic bug in get_keys()
+      mltools/tools_utils: remove unused function "key_store_to_cli"
+      mltools/tools_utils: allow multiple "--key" options for OCaml tools too
+      options: replace NULL-termination with number-of-elements in get_keys()
+      options: wrap each passphrase from get_keys() into a struct
+      options: add back-end for LUKS decryption with Clevis+Tang
+      options: introduce selector type "key_clevis"
+      options: generalize "--key" selector parsing for C-language utilities
+      mltools/tools_utils-c: handle internal type error with abort()
+      mltools/tools_utils: generalize "--key" selector parsing for OCaml utils
+      options, mltools/tools_utils: parse "--key ID:clevis" options
+      options, mltools/tools_utils: add helper for network dependency
+).
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1809453
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Richard W.M. Jones <rjones@redhat.com>
+Message-Id: <20220630122048.19335-4-lersek@redhat.com>
+(cherry picked from commit 6a5b44f538065a9f661510234a4235bf38348213)
+---
+ fish/fish.c       | 3 +++
+ fuse/guestmount.c | 4 ++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/fish/fish.c b/fish/fish.c
+index 23d9bb94f..19e3d2799 100644
+--- a/fish/fish.c
++++ b/fish/fish.c
+@@ -476,6 +476,9 @@ main (int argc, char *argv[])
+   /* If we've got drives to add, add them now. */
+   add_drives (drvs);
+ 
++  if (key_store_requires_network (ks) && guestfs_set_network (g, 1) == -1)
++    exit (EXIT_FAILURE);
++
+   /* If we've got mountpoints or prepared drives or -i option, we must
+    * launch the guest and mount them.
+    */
+diff --git a/fuse/guestmount.c b/fuse/guestmount.c
+index 77c534828..3c6d57bde 100644
+--- a/fuse/guestmount.c
++++ b/fuse/guestmount.c
+@@ -348,6 +348,10 @@ main (int argc, char *argv[])
+ 
+   /* Do the guest drives and mountpoints. */
+   add_drives (drvs);
++
++  if (key_store_requires_network (ks) && guestfs_set_network (g, 1) == -1)
++    exit (EXIT_FAILURE);
++
+   if (guestfs_launch (g) == -1)
+     exit (EXIT_FAILURE);
+   if (inspector)
+-- 
+2.31.1
+
