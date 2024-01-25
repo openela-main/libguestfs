@@ -1,4 +1,4 @@
-From 010cd5ff441166c01125fc588398a1fb8367a852 Mon Sep 17 00:00:00 2001
+From ab7e68dbeefe464734bd63a862a36f612f76d396 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Mon, 29 Jul 2013 14:47:56 +0100
 Subject: [PATCH] RHEL: Disable unsupported remote drive protocols
@@ -31,7 +31,7 @@ We hope to gradually add some of these back over the lifetime of RHEL.
  8 files changed, 16 insertions(+), 348 deletions(-)
 
 diff --git a/docs/guestfs-testing.pod b/docs/guestfs-testing.pod
-index f558964bf..8f264ed17 100644
+index 47f381a7..c7b44928 100644
 --- a/docs/guestfs-testing.pod
 +++ b/docs/guestfs-testing.pod
 @@ -109,26 +109,6 @@ image.  To exit, type C<exit>.
@@ -62,7 +62,7 @@ index f558964bf..8f264ed17 100644
  
  Run L<virt-alignment-scan(1)> on guests or disk images:
 diff --git a/fish/guestfish.pod b/fish/guestfish.pod
-index ae2445571..46cba64ff 100644
+index ccc0825b..d36cac9d 100644
 --- a/fish/guestfish.pod
 +++ b/fish/guestfish.pod
 @@ -131,9 +131,9 @@ To list what is available do:
@@ -171,7 +171,7 @@ index ae2445571..46cba64ff 100644
  In this case, the password is C<pass@word>.
  
 diff --git a/fish/test-add-uri.sh b/fish/test-add-uri.sh
-index 21d424984..ddabeb639 100755
+index 21d42498..ddabeb63 100755
 --- a/fish/test-add-uri.sh
 +++ b/fish/test-add-uri.sh
 @@ -40,14 +40,6 @@ function fail ()
@@ -220,7 +220,7 @@ index 21d424984..ddabeb639 100755
  rm test-add-uri.out
  rm test-add-uri.img
 diff --git a/generator/actions_core.ml b/generator/actions_core.ml
-index 807150615..6cd42a290 100644
+index c8d9949b..26c576c7 100644
 --- a/generator/actions_core.ml
 +++ b/generator/actions_core.ml
 @@ -350,29 +350,6 @@ F<filename> is interpreted as a local file or device.
@@ -305,7 +305,7 @@ index 807150615..6cd42a290 100644
  example if using the libvirt backend and if the libvirt backend is configured to
  start the qemu appliance as a special user such as C<qemu.qemu>.  If in doubt,
 diff --git a/lib/drives.c b/lib/drives.c
-index c5a208468..efb289254 100644
+index c5a20846..efb28925 100644
 --- a/lib/drives.c
 +++ b/lib/drives.c
 @@ -166,6 +166,7 @@ create_drive_non_file (guestfs_h *g,
@@ -373,10 +373,10 @@ index c5a208468..efb289254 100644
      error (g, _("unknown protocol ‘%s’"), protocol);
      drv = NULL; /*FALLTHROUGH*/
 diff --git a/lib/guestfs.pod b/lib/guestfs.pod
-index 1ad44e7c2..946ce2d36 100644
+index c6c8cb16..866a4638 100644
 --- a/lib/guestfs.pod
 +++ b/lib/guestfs.pod
-@@ -712,70 +712,6 @@ a qcow2 backing file specification, libvirt does not construct an
+@@ -723,70 +723,6 @@ a qcow2 backing file specification, libvirt does not construct an
  ephemeral secret object from those, for Ceph authentication.  Refer to
  L<https://bugzilla.redhat.com/2033247>.
  
@@ -447,7 +447,7 @@ index 1ad44e7c2..946ce2d36 100644
  =head3 NETWORK BLOCK DEVICE
  
  Libguestfs can access Network Block Device (NBD) disks remotely.
-@@ -838,42 +774,6 @@ L<https://bugs.launchpad.net/qemu/+bug/1155677>
+@@ -849,42 +785,6 @@ L<https://bugs.launchpad.net/qemu/+bug/1155677>
  
  =back
  
@@ -491,7 +491,7 @@ index 1ad44e7c2..946ce2d36 100644
  
  Libguestfs has APIs for inspecting an unknown disk image to find out
 diff --git a/tests/disks/test-qemu-drive-libvirt.sh b/tests/disks/test-qemu-drive-libvirt.sh
-index 595a95a5e..b49534c94 100755
+index d86a1ecd..cf7d2a0c 100755
 --- a/tests/disks/test-qemu-drive-libvirt.sh
 +++ b/tests/disks/test-qemu-drive-libvirt.sh
 @@ -65,34 +65,6 @@ check_output
@@ -530,7 +530,7 @@ index 595a95a5e..b49534c94 100755
  
  $guestfish -d pool1 run ||:
 diff --git a/tests/disks/test-qemu-drive.sh b/tests/disks/test-qemu-drive.sh
-index 12937fb30..b3e4f9903 100755
+index 12937fb3..b3e4f990 100755
 --- a/tests/disks/test-qemu-drive.sh
 +++ b/tests/disks/test-qemu-drive.sh
 @@ -62,45 +62,6 @@ check_output
@@ -604,6 +604,3 @@ index 12937fb30..b3e4f9903 100755
 -check_output
 -grep -sq -- '-drive file=ssh://rich@example.com/disk.img,' "$DEBUG_QEMU_FILE" || fail
 -rm "$DEBUG_QEMU_FILE"
--- 
-2.31.1
-

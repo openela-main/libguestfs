@@ -3,12 +3,11 @@
 set -e
 
 # Maintainer script to copy patches from the git repo to the current
-# directory.  It's normally only used downstream (ie. in RHEL).  Use
-# it like this:
+# directory.  Use it like this:
 #   ./copy-patches.sh
 
 project=libguestfs
-rhel_version=9.2
+rhel_version=9.3
 
 # Check we're in the right directory.
 if [ ! -f $project.spec ]; then
@@ -37,7 +36,12 @@ git rm -f [0-9]*.patch ||:
 rm -f [0-9]*.patch
 
 # Get the patches.
-(cd $git_checkout; rm -f [0-9]*.patch; git -c core.abbrev=9 format-patch -O/dev/null -N --submodule=diff $tag)
+(
+  cd $git_checkout
+  rm -f [0-9]*.patch
+  git -c core.abbrev=8 format-patch -O/dev/null --subject-prefix=PATCH -N \
+      --submodule=diff --no-signature --patience $tag
+)
 mv $git_checkout/[0-9]*.patch .
 
 # Remove any not to be applied.

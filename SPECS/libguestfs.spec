@@ -14,10 +14,7 @@
 %if !0%{?rhel}
 %global test_arches aarch64 %{power64} s390x x86_64
 %else
-# RHEL 9 only:
-# x86-64:  "/lib64/libc.so.6: CPU ISA level is lower than required"
-#          (RHBZ#1919389)
-%global test_arches NONE
+%global test_arches x86_64
 %endif
 
 # Trim older changelog entries.
@@ -36,7 +33,7 @@
 %endif
 
 # The source directory.
-%global source_directory 1.48-stable
+%global source_directory 1.50-stable
 
 # Filter perl provides.
 %{?perl_default_filter}
@@ -47,8 +44,8 @@
 Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
-Version:       1.48.4
-Release:       4%{?dist}
+Version:       1.50.1
+Release:       6%{?dist}
 License:       LGPLv2+
 
 # Build only for architectures that have a kernel
@@ -83,27 +80,22 @@ Source7:       libguestfs.keyring
 Source8:       copy-patches.sh
 
 # Patches are maintained in the following repository:
-# https://github.com/libguestfs/libguestfs/commits/rhel-9.2
+# https://github.com/libguestfs/libguestfs/commits/rhel-9.3
 
 # Patches.
-Patch0001:     0001-New-API-guestfs_device_name-returning-the-drive-name.patch
-Patch0002:     0002-guestfs_readdir-rewrite-with-FileOut-transfer-to-lif.patch
-Patch0003:     0003-guestfs_readdir-minimize-the-number-of-send_file_wri.patch
-Patch0004:     0004-lib-launch-direct-ignore-drive-iface-parameter.patch
-Patch0005:     0005-lib-drive_create_data-drive-remove-field-iface.patch
-Patch0006:     0006-lib-rename-VALID_FORMAT_IFACE-to-VALID_FORMAT.patch
-Patch0007:     0007-tests-regressions-remove-iface-based-restrictions.patch
-Patch0008:     0008-generator-customize-invert-SELinux-relabeling-defaul.patch
-Patch0009:     0009-generator-customize-reintroduce-selinux-relabel-as-a.patch
-Patch0010:     0010-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
-Patch0011:     0011-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
-Patch0012:     0012-RHEL-Create-etc-crypto-policies-back-ends-opensslcnf.patch
-Patch0013:     0013-php-add-arginfo-to-php-bindings.patch
-Patch0014:     0014-introduce-the-clevis_luks_unlock-API.patch
-Patch0015:     0015-guestfish-guestmount-enable-networking-for-key-ID-cl.patch
-Patch0016:     0016-daemon-Add-zstd-support-to-guestfs_file_architecture.patch
-Patch0017:     0017-New-API-inspect_get_build_id.patch
-Patch0018:     0018-lib-Return-correct-osinfo-field-for-Windows-11.patch
+#Patch0001:     0001-update-common-submodule.patch
+Patch0002:     0002-update-common-submodule.patch
+Patch0003:     0003-daemon-selinux-relabel-don-t-exclude-selinux-if-it-s.patch
+Patch0004:     0004-daemon-selinux-relabel-search-for-invalid-option-in-.patch
+Patch0005:     0005-daemon-selinux-relabel-run-setfiles-with-T-0-if-supp.patch
+Patch0006:     0006-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
+Patch0007:     0007-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
+Patch0008:     0008-Remove-virt-dib.patch
+Patch0009:     0009-lib-Choose-q35-machine-type-for-x86-64.patch
+Patch0010:     0010-RHEL-Revert-build-Remove-bundled-copy-of-ocaml-augea.patch
+Patch0011:     0011-update-common-submodule.patch
+Patch0012:     0012-LUKS-on-LVM-inspection-test-rename-VGs-and-LVs.patch
+Patch0013:     0013-LUKS-on-LVM-inspection-test-test-dev-mapper-VG-LV-tr.patch
 
 %if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
@@ -122,6 +114,8 @@ BuildRequires: perl(Pod::Man)
 BuildRequires: /usr/bin/pod2text
 BuildRequires: po4a
 BuildRequires: augeas-devel >= 1.7.0
+# Waiting for https://bugzilla.redhat.com/show_bug.cgi?id=2168634
+#BuildRequires: ocaml-augeas-devel >= 0.6
 BuildRequires: readline-devel
 BuildRequires: xorriso
 BuildRequires: libxml2-devel
@@ -173,7 +167,6 @@ BuildRequires: gnupg2
 BuildRequires: ocaml
 BuildRequires: ocaml-ocamldoc
 BuildRequires: ocaml-findlib-devel
-BuildRequires: ocaml-gettext-devel
 %if !0%{?rhel}
 BuildRequires: ocaml-ounit-devel
 %endif
@@ -227,10 +220,6 @@ BuildRequires: clevis-luks
 BuildRequires: coreutils
 BuildRequires: cpio
 BuildRequires: cryptsetup
-%if !0%{?rhel}
-BuildRequires: curl
-BuildRequires: debootstrap
-%endif
 BuildRequires: dhclient
 BuildRequires: diffutils
 BuildRequires: dosfstools
@@ -254,9 +243,6 @@ BuildRequires: iproute
 BuildRequires: iputils
 BuildRequires: kernel
 BuildRequires: kmod
-%if !0%{?rhel}
-BuildRequires: kpartx
-%endif
 BuildRequires: less
 BuildRequires: libcap
 %if !0%{?rhel}
@@ -279,7 +265,6 @@ BuildRequires: pcre2
 BuildRequires: policycoreutils
 BuildRequires: procps
 BuildRequires: psmisc
-BuildRequires: qemu-img
 BuildRequires: rpm-libs
 BuildRequires: rsync
 BuildRequires: scrub
@@ -297,9 +282,6 @@ BuildRequires: tar
 BuildRequires: udev
 BuildRequires: util-linux
 BuildRequires: vim-minimal
-%if !0%{?rhel}
-BuildRequires: which
-%endif
 BuildRequires: xfsprogs
 BuildRequires: xz
 BuildRequires: yajl
@@ -449,17 +431,6 @@ Requires:      pkgconfig
 %description devel
 %{name}-devel contains development tools and libraries
 for %{name}.
-
-
-%if !0%{?rhel}
-%package dib
-Summary:       Additional tools for virt-dib
-License:       LGPLv2+
-
-%description dib
-This adds extra packages needed by virt-dib to %{name}.  You should
-normally install the virt-dib package which depends on this one.
-%endif
 
 
 %if !0%{?rhel}
@@ -798,8 +769,14 @@ make V=1 INSTALLDIRS=vendor %{?_smp_mflags}
 
 
 %check
-
 %ifarch %{test_arches}
+# Only run the tests with non-debug (ie. non-Rawhide) kernels.
+# XXX This tests for any debug kernel installed.
+if grep CONFIG_DEBUG_MUTEXES=y /lib/modules/*/config ; then
+    echo "Skipping tests because debug kernel is installed"
+    exit 0
+fi
+
 export LIBGUESTFS_DEBUG=1
 export LIBGUESTFS_TRACE=1
 export LIBVIRT_DEBUG=1
@@ -827,6 +804,13 @@ find $RPM_BUILD_ROOT -name perllocal.pod -delete
 find $RPM_BUILD_ROOT -name .packlist -delete
 find $RPM_BUILD_ROOT -name '*.bs' -delete
 find $RPM_BUILD_ROOT -name 'bindtests.pl' -delete
+
+# Perl's ExtUtils::Install installs "Guestfs.so" read-only; that
+# prevents objcopy from adding the ".gdb_index" section for the sake of
+# the debuginfo file. See
+# <https://rt.cpan.org/Public/Bug/Display.html?id=40976>. Restore write
+# permission for the file owner.
+find $RPM_BUILD_ROOT -name Guestfs.so -exec chmod u+w '{}' +
 
 # golang: Ignore what libguestfs upstream installs, and just copy the
 # source files to %%{_datadir}/gocode/src.
@@ -856,19 +840,6 @@ function move_to
     echo "$1" >> "$2"
 }
 
-%if !0%{?rhel}
-move_to curl            zz-packages-dib
-move_to debootstrap     zz-packages-dib
-move_to kpartx          zz-packages-dib
-move_to qemu-img        zz-packages-dib
-move_to which           zz-packages-dib
-%else
-remove curl
-remove debootstrap
-remove kpartx
-remove qemu-img
-remove which
-%endif
 %if !0%{?rhel}
 move_to sleuthkit       zz-packages-forensics
 move_to gfs2-utils      zz-packages-gfs2
@@ -976,11 +947,6 @@ rm ocaml/html/.gitignore
 %{_includedir}/guestfs.h
 %{_libdir}/pkgconfig/libguestfs.pc
 
-
-%if !0%{?rhel}
-%files dib
-%{_libdir}/guestfs/supermin.d/zz-packages-dib
-%endif
 
 %if !0%{?rhel}
 %files forensics
@@ -1140,6 +1106,23 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Wed Jun 07 2023 Laszlo Ersek <lersek@redhat.com> - 1:1.50.1-6
+- enable the ".gdb_index" section in the Perl bindings debug info
+  resolves: rhbz#2209279
+
+* Tue May 23 2023 Laszlo Ersek <lersek@redhat.com> - 1:1.50.1-5
+- let "guestfish -i" recognize "--key /dev/mapper/VG-LV:key:password"
+- reenable quickcheck; we now use "-cpu max" (upstream 30f74f38bd6e)
+  resolves: rhbz#2209279
+
+* Thu May 04 2023 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-4
+- Rebase libguestfs to 1.50.1
+  resolves: rhbz#2168625
+- Use q35 machine type for libguestfs appliance
+  resolves: rhbz#2168578
+- Run SELinux relabelling in parallel [for virt-v2v]
+  resolves: rhbz#2190276
+
 * Fri Dec 02 2022 Richard W.M. Jones <rjones@redhat.com> - 1:1.48.4-4
 - New API: guestfs_inspect_get_build_id
 - Add support for detecting Windows >= 10, returned through osinfo

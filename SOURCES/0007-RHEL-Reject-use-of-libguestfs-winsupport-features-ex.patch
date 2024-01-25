@@ -1,4 +1,4 @@
-From d59942a7a3d1ca2248a94099d28f7555378d7993 Mon Sep 17 00:00:00 2001
+From b74c6c8520773c2ef4a4d69b08b70e5ceeb06964 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Tue, 7 Jul 2015 09:28:03 -0400
 Subject: [PATCH] RHEL: Reject use of libguestfs-winsupport features except for
@@ -13,7 +13,7 @@ edits.
  3 files changed, 19 insertions(+)
 
 diff --git a/generator/c.ml b/generator/c.ml
-index ea69abf76..56ee38aa4 100644
+index 447059b8..0391dd3d 100644
 --- a/generator/c.ml
 +++ b/generator/c.ml
 @@ -1846,6 +1846,22 @@ and generate_client_actions actions () =
@@ -40,7 +40,7 @@ index ea69abf76..56ee38aa4 100644
       * as a progress bar hint.
       *)
 diff --git a/test-data/phony-guests/make-windows-img.sh b/test-data/phony-guests/make-windows-img.sh
-index 30908a918..73cf5144e 100755
+index 16debd12..1c13ddac 100755
 --- a/test-data/phony-guests/make-windows-img.sh
 +++ b/test-data/phony-guests/make-windows-img.sh
 @@ -37,6 +37,7 @@ fi
@@ -52,7 +52,7 @@ index 30908a918..73cf5144e 100755
  run
  
 diff --git a/tests/charsets/test-charset-fidelity.c b/tests/charsets/test-charset-fidelity.c
-index 105291dc3..5ca4f3b6d 100644
+index 105291dc..5ca4f3b6 100644
 --- a/tests/charsets/test-charset-fidelity.c
 +++ b/tests/charsets/test-charset-fidelity.c
 @@ -96,6 +96,8 @@ main (int argc, char *argv[])
@@ -64,6 +64,3 @@ index 105291dc3..5ca4f3b6d 100644
    if (guestfs_add_drive_scratch (g, 1024*1024*1024, -1) == -1)
      exit (EXIT_FAILURE);
  
--- 
-2.31.1
-
