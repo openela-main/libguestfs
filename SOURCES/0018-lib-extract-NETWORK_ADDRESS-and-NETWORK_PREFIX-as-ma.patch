@@ -1,0 +1,70 @@
+From 4b9eac11db3e2cc9ace397ed4c804356a7d9adbf Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Thu, 23 Dec 2021 11:37:00 +0100
+Subject: [PATCH] lib: extract NETWORK_ADDRESS and NETWORK_PREFIX as macros
+
+The 169.254.0.0/16 network specification (for the appliance) is currently
+duplicated between the direct backend and the libvirt backend. In a
+subsequent patch, we're going to need the network specification in yet
+another spot; extract it now to the NETWORK_ADDRESS and NETWORK_PREFIX
+macros (simply as strings).
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2034160
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Message-Id: <20211223103701.12702-3-lersek@redhat.com>
+Reviewed-by: Richard W.M. Jones <rjones@redhat.com>
+Tested-by: Richard W.M. Jones <rjones@redhat.com>
+(cherry picked from commit 216de164e091a5c36403f24901698044a43ae0d9)
+---
+ lib/guestfs-internal.h | 6 ++++++
+ lib/launch-direct.c    | 2 +-
+ lib/launch-libvirt.c   | 3 ++-
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/lib/guestfs-internal.h b/lib/guestfs-internal.h
+index 0b46f0070..97a13ff2c 100644
+--- a/lib/guestfs-internal.h
++++ b/lib/guestfs-internal.h
+@@ -158,6 +158,12 @@
+ #endif
+ #endif
+ 
++/* Network address and network mask (expressed as address prefix) that the
++ * appliance will see (if networking is enabled).
++ */
++#define NETWORK_ADDRESS "169.254.0.0"
++#define NETWORK_PREFIX  "16"
++
+ /* Guestfs handle and associated structures. */
+ 
+ /* State. */
+diff --git a/lib/launch-direct.c b/lib/launch-direct.c
+index b6ed9766f..de17d2167 100644
+--- a/lib/launch-direct.c
++++ b/lib/launch-direct.c
+@@ -681,7 +681,7 @@ launch_direct (guestfs_h *g, void *datav, const char *arg)
+     start_list ("-netdev") {
+       append_list ("user");
+       append_list ("id=usernet");
+-      append_list ("net=169.254.0.0/16");
++      append_list ("net=" NETWORK_ADDRESS "/" NETWORK_PREFIX);
+     } end_list ();
+     start_list ("-device") {
+       append_list (VIRTIO_DEVICE_NAME ("virtio-net"));
+diff --git a/lib/launch-libvirt.c b/lib/launch-libvirt.c
+index 5842319df..0f38f0aec 100644
+--- a/lib/launch-libvirt.c
++++ b/lib/launch-libvirt.c
+@@ -1826,7 +1826,8 @@ construct_libvirt_xml_qemu_cmdline (guestfs_h *g,
+       } end_element ();
+ 
+       start_element ("qemu:arg") {
+-        attribute ("value", "user,id=usernet,net=169.254.0.0/16");
++        attribute ("value",
++                   "user,id=usernet,net=" NETWORK_ADDRESS "/" NETWORK_PREFIX);
+       } end_element ();
+ 
+       start_element ("qemu:arg") {
+-- 
+2.31.1
+
