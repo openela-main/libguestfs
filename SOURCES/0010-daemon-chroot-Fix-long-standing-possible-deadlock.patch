@@ -1,0 +1,44 @@
+From 3435938f43ca3737ec1d73da4d8cad756b5c9508 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 26 Mar 2021 16:04:43 +0000
+Subject: [PATCH] daemon: chroot: Fix long-standing possible deadlock.
+
+The child (chrooted) process wrote its answer on the pipe and then
+exited.  Meanwhile the parent waiting for the child to exit before
+reading from the pipe.  Thus if the output was larger than a Linux
+pipebuffer then the whole thing would deadlock.
+
+(cherry picked from commit 94e64b28bee3b8dc7ed354a366d6a8f7ba5f245c)
+---
+ daemon/chroot.ml | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/daemon/chroot.ml b/daemon/chroot.ml
+index 5e856c91f..7da8ae29e 100644
+--- a/daemon/chroot.ml
++++ b/daemon/chroot.ml
+@@ -62,6 +62,10 @@ let f t func arg =
+   (* Parent. *)
+   close wfd;
+ 
++  let chan = in_channel_of_descr rfd in
++  let ret = input_value chan in
++  close_in chan;
++
+   let _, status = waitpid [] pid in
+   (match status with
+    | WEXITED 0 -> ()
+@@ -76,10 +80,6 @@ let f t func arg =
+       failwithf "chroot ‘%s’ stopped by signal %d" t.name i
+   );
+ 
+-  let chan = in_channel_of_descr rfd in
+-  let ret = input_value chan in
+-  close_in chan;
+-
+   match ret with
+   | Either ret -> ret
+   | Or exn -> raise exn
+-- 
+2.31.1
+
