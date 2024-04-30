@@ -45,7 +45,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.50.1
-Release:       6%{?dist}
+Release:       7%{?dist}
 License:       LGPLv2+
 
 # Build only for architectures that have a kernel
@@ -79,11 +79,19 @@ Source7:       libguestfs.keyring
 # Maintainer script which helps with handling patches.
 Source8:       copy-patches.sh
 
+# This is a copy of the common/ submodule from libguestfs @v1.50.1.
+# We need it because the libguestfs tarball does not include common/
+# directories that are not used by libguestfs (eg. common/mlcustomize).
+# However the patches (below) patch files in those directories and so
+# do not apply properly to the libguestfs tarball.  Therefore before
+# applying the patches we unpack this in the common/ subdirectory.
+Source9:       libguestfs-common-1.50.1.tar.gz
+
 # Patches are maintained in the following repository:
-# https://github.com/libguestfs/libguestfs/commits/rhel-9.3
+# https://github.com/libguestfs/libguestfs/commits/rhel-9.4
 
 # Patches.
-#Patch0001:     0001-update-common-submodule.patch
+Patch0001:     0001-update-common-submodule.patch
 Patch0002:     0002-update-common-submodule.patch
 Patch0003:     0003-daemon-selinux-relabel-don-t-exclude-selinux-if-it-s.patch
 Patch0004:     0004-daemon-selinux-relabel-search-for-invalid-option-in-.patch
@@ -96,6 +104,32 @@ Patch0010:     0010-RHEL-Revert-build-Remove-bundled-copy-of-ocaml-augea.patch
 Patch0011:     0011-update-common-submodule.patch
 Patch0012:     0012-LUKS-on-LVM-inspection-test-rename-VGs-and-LVs.patch
 Patch0013:     0013-LUKS-on-LVM-inspection-test-test-dev-mapper-VG-LV-tr.patch
+Patch0014:     0014-Replace-Pervasives.-with-Stdlib.patch
+Patch0015:     0015-fuse-Don-t-call-fclose-NULL-on-error-paths.patch
+Patch0016:     0016-ocaml-implicit_close-test-collect-all-currently-unre.patch
+Patch0017:     0017-ocaml-Replace-old-enter-leave_blocking_section-calls.patch
+Patch0018:     0018-ocaml-Release-runtime-lock-around-guestfs_close.patch
+Patch0019:     0019-ocaml-Conditionally-acquire-the-lock-in-callbacks.patch
+Patch0020:     0020-ocaml-Fix-guestfs_065_implicit_close.ml-for-OCaml-5.patch
+Patch0021:     0021-ocaml-Use-Caml_state_opt-in-preference-to-caml_state.patch
+Patch0022:     0022-generator-Add-chown-option-for-virt-customize.patch
+Patch0023:     0023-lib-remove-guestfs_int_cmd_clear_close_files.patch
+Patch0024:     0024-docs-fix-broken-link-in-the-guestfs-manual.patch
+Patch0025:     0025-docs-clarify-sockdir-s-separation.patch
+Patch0026:     0026-lib-move-guestfs_int_create_socketname-from-launch.c.patch
+Patch0027:     0027-generator-customize-Add-new-StringTriplet-for-use-by.patch
+Patch0028:     0028-daemon-lvm-Do-reverse-device-name-translation-on-pvs.patch
+Patch0029:     0029-ruby-Replace-MiniTest-with-Minitest.patch
+Patch0030:     0030-ruby-Get-rid-of-old-Test-Unit-compatibility.patch
+Patch0031:     0031-generator-Sort-virt-customize-options-into-alphabeti.patch
+Patch0032:     0032-generator-Add-new-virt-customize-tar-in-operation.patch
+Patch0033:     0033-New-mailing-list-email-address.patch
+Patch0034:     0034-New-mailing-list-archives.patch
+Patch0035:     0035-lib-Include-libxml-parser.h-for-xmlReadMemory.patch
+Patch0036:     0036-ocaml-Use-Gc.finalise-instead-of-a-C-finalizer.patch
+Patch0037:     0037-ocaml-Nullify-custom-block-before-releasing-runtime-.patch
+Patch0038:     0038-Update-common-submodule.patch
+Patch0039:     0039-tests-Test-guestfish-key-all-.-selector.patch
 
 %if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
@@ -704,6 +738,9 @@ for %{name}.
 %{gpgverify} --keyring='%{SOURCE7}' --signature='%{SOURCE1}' --data='%{SOURCE0}'
 %endif
 %setup -q
+%if 0%{?rhel}
+tar zxf %{SOURCE9}
+%endif
 %autopatch -p1
 
 %if 0%{patches_touch_autotools}
@@ -1106,6 +1143,11 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Thu Dec 14 2023 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-7
+- Add --key all:... selector
+  resolves: RHEL-19367
+- Add miscellaneous other upstream fixes since 1.50.1
+
 * Wed Jun 07 2023 Laszlo Ersek <lersek@redhat.com> - 1:1.50.1-6
 - enable the ".gdb_index" section in the Perl bindings debug info
   resolves: rhbz#2209279

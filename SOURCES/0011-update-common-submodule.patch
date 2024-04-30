@@ -23,20 +23,49 @@ Reviewed-by: Richard W.M. Jones <rjones@redhat.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 Submodule common 70c10a07..b636c3f2:
-diff --git a/common/options/options.h b/common/options/options.h
-index 94573ee0..94e8b9ee 100644
---- a/common/options/options.h
-+++ b/common/options/options.h
-@@ -169,7 +169,8 @@ extern struct matching_key *get_keys (struct key_store *ks, const char *device,
-                                       const char *uuid, size_t *nr_matches);
- extern void free_keys (struct matching_key *keys, size_t nr_matches);
- extern struct key_store *key_store_add_from_selector (struct key_store *ks, const char *selector);
--extern struct key_store *key_store_import_key (struct key_store *ks, const struct key_store_key *key);
-+extern struct key_store *key_store_import_key (struct key_store *ks,
-+                                               struct key_store_key *key);
- extern bool key_store_requires_network (const struct key_store *ks);
- extern void free_key_store (struct key_store *ks);
+diff --git a/common/mlcustomize/SELinux_relabel.ml b/common/mlcustomize/SELinux_relabel.ml
+index 5ecf7bd7..2f3a09bf 100644
+--- a/common/mlcustomize/SELinux_relabel.ml
++++ b/common/mlcustomize/SELinux_relabel.ml
+@@ -24,10 +24,6 @@ open Printf
  
+ module G = Guestfs
+ 
+-(* Simple reimplementation of Array.mem, available only with OCaml >= 4.03. *)
+-let array_find a l =
+-  List.mem a (Array.to_list l)
+-
+ let rec relabel (g : G.guestfs) =
+   (* Is the guest using SELinux?  (Otherwise this is a no-op). *)
+   if is_selinux_guest g then (
+@@ -59,14 +55,24 @@ and use_setfiles g =
+   g#aug_load ();
+   debug_augeas_errors g;
+ 
++  let config_path = "/files/etc/selinux/config" in
++  let config_keys = g#aug_ls config_path in
++  (* SELinux may be disabled via a setting in config file *)
++  let selinux_disabled =
++    let selinuxmode_path = config_path ^ "/SELINUX" in
++    if Array.mem selinuxmode_path config_keys then
++      g#aug_get selinuxmode_path = "disabled"
++    else
++      false in
++  if selinux_disabled then
++      failwith "selinux disabled";
++
+   (* Get the SELinux policy name, eg. "targeted", "minimum".
+    * Use "targeted" if not specified, just like libselinux does.
+    *)
+   let policy =
+-    let config_path = "/files/etc/selinux/config" in
+     let selinuxtype_path = config_path ^ "/SELINUXTYPE" in
+-    let keys = g#aug_ls config_path in
+-    if array_find selinuxtype_path keys then
++    if Array.mem selinuxtype_path config_keys then
+       g#aug_get selinuxtype_path
+     else
+       "targeted" in
 diff --git a/common/options/keys.c b/common/options/keys.c
 index 48f1bc7c..52b27369 100644
 --- a/common/options/keys.c
@@ -157,4 +186,18 @@ index 48f1bc7c..52b27369 100644
 +  unescape_device_mapper_lvm (key->id);
    ks->keys[ks->nr_keys] = *key;
    ++ks->nr_keys;
+ 
+diff --git a/common/options/options.h b/common/options/options.h
+index 94573ee0..94e8b9ee 100644
+--- a/common/options/options.h
++++ b/common/options/options.h
+@@ -169,7 +169,8 @@ extern struct matching_key *get_keys (struct key_store *ks, const char *device,
+                                       const char *uuid, size_t *nr_matches);
+ extern void free_keys (struct matching_key *keys, size_t nr_matches);
+ extern struct key_store *key_store_add_from_selector (struct key_store *ks, const char *selector);
+-extern struct key_store *key_store_import_key (struct key_store *ks, const struct key_store_key *key);
++extern struct key_store *key_store_import_key (struct key_store *ks,
++                                               struct key_store_key *key);
+ extern bool key_store_requires_network (const struct key_store *ks);
+ extern void free_key_store (struct key_store *ks);
  
