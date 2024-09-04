@@ -45,7 +45,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.50.1
-Release:       7%{?dist}
+Release:       8%{?dist}
 License:       LGPLv2+
 
 # Build only for architectures that have a kernel
@@ -130,6 +130,7 @@ Patch0036:     0036-ocaml-Use-Gc.finalise-instead-of-a-C-finalizer.patch
 Patch0037:     0037-ocaml-Nullify-custom-block-before-releasing-runtime-.patch
 Patch0038:     0038-Update-common-submodule.patch
 Patch0039:     0039-tests-Test-guestfish-key-all-.-selector.patch
+Patch0040:     0040-daemon-part_get_gpt_type-Remove-unhelpful-MBR-fallba.patch
 
 %if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
@@ -1143,6 +1144,10 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Thu Aug 29 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-8
+- daemon: part_get_gpt_type: Remove unhelpful MBR fallback behaviour
+  resolves: RHEL-56697
+
 * Thu Dec 14 2023 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-7
 - Add --key all:... selector
   resolves: RHEL-19367

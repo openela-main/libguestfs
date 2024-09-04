@@ -1,0 +1,45 @@
+From edfddf2f6c201461bae29f101ab44462f0151ca6 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 10 May 2024 15:23:35 +0100
+Subject: [PATCH] daemon: part_get_gpt_type: Remove unhelpful MBR fallback
+ behaviour
+
+This was an accident of the parted implementation, and wasn't really
+used anywhere.  Remove it.
+
+(cherry picked from commit 2811e42b436c94392c2722bbf4b19299285a6254)
+---
+ daemon/listfs.ml          | 3 ++-
+ generator/actions_core.ml | 4 +---
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/daemon/listfs.ml b/daemon/listfs.ml
+index 2376b61d..4cc3c437 100644
+--- a/daemon/listfs.ml
++++ b/daemon/listfs.ml
+@@ -111,8 +111,9 @@ and is_partition_can_hold_filesystem partition =
+       false
+     else if is_mbr_bogus parttype device partnum then
+       true
++    else if is_mbr then
++      true
+     else (
+-      (* MBR partition id will be converted into corresponding GPT type. *)
+       let gpt_type = Parted.part_get_gpt_type device partnum in
+       match gpt_type with
+       (* Windows Logical Disk Manager metadata partition. *)
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index 26c576c7..faabfdd7 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -8118,9 +8118,7 @@ for a useful list of type GUIDs." };
+     ];
+     shortdesc = "get the type GUID of a GPT partition";
+     longdesc = "\
+-Return the type GUID of numbered GPT partition C<partnum>. For MBR partitions,
+-return an appropriate GUID corresponding to the MBR type. Behaviour is undefined
+-for other partition types." };
++Return the type GUID of numbered GPT partition C<partnum>." };
+ 
+   { defaults with
+     name = "part_set_gpt_attributes"; added = (1, 21, 1);
