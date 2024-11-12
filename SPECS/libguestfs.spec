@@ -44,8 +44,8 @@
 Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
-Version:       1.50.1
-Release:       8%{?dist}
+Version:       1.50.2
+Release:       1%{?dist}
 License:       LGPLv2+
 
 # Build only for architectures that have a kernel
@@ -79,58 +79,56 @@ Source7:       libguestfs.keyring
 # Maintainer script which helps with handling patches.
 Source8:       copy-patches.sh
 
-# This is a copy of the common/ submodule from libguestfs @v1.50.1.
+# This is a copy of the common/ submodule from libguestfs @v1.50.2.
 # We need it because the libguestfs tarball does not include common/
 # directories that are not used by libguestfs (eg. common/mlcustomize).
 # However the patches (below) patch files in those directories and so
 # do not apply properly to the libguestfs tarball.  Therefore before
 # applying the patches we unpack this in the common/ subdirectory.
-Source9:       libguestfs-common-1.50.1.tar.gz
+Source9:       libguestfs-common-1.50.2.tar.gz
 
 # Patches are maintained in the following repository:
-# https://github.com/libguestfs/libguestfs/commits/rhel-9.4
+# https://github.com/libguestfs/libguestfs/commits/rhel-9.5
 
 # Patches.
-Patch0001:     0001-update-common-submodule.patch
-Patch0002:     0002-update-common-submodule.patch
-Patch0003:     0003-daemon-selinux-relabel-don-t-exclude-selinux-if-it-s.patch
-Patch0004:     0004-daemon-selinux-relabel-search-for-invalid-option-in-.patch
-Patch0005:     0005-daemon-selinux-relabel-run-setfiles-with-T-0-if-supp.patch
-Patch0006:     0006-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
-Patch0007:     0007-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
-Patch0008:     0008-Remove-virt-dib.patch
-Patch0009:     0009-lib-Choose-q35-machine-type-for-x86-64.patch
-Patch0010:     0010-RHEL-Revert-build-Remove-bundled-copy-of-ocaml-augea.patch
-Patch0011:     0011-update-common-submodule.patch
-Patch0012:     0012-LUKS-on-LVM-inspection-test-rename-VGs-and-LVs.patch
-Patch0013:     0013-LUKS-on-LVM-inspection-test-test-dev-mapper-VG-LV-tr.patch
-Patch0014:     0014-Replace-Pervasives.-with-Stdlib.patch
-Patch0015:     0015-fuse-Don-t-call-fclose-NULL-on-error-paths.patch
-Patch0016:     0016-ocaml-implicit_close-test-collect-all-currently-unre.patch
-Patch0017:     0017-ocaml-Replace-old-enter-leave_blocking_section-calls.patch
-Patch0018:     0018-ocaml-Release-runtime-lock-around-guestfs_close.patch
-Patch0019:     0019-ocaml-Conditionally-acquire-the-lock-in-callbacks.patch
-Patch0020:     0020-ocaml-Fix-guestfs_065_implicit_close.ml-for-OCaml-5.patch
-Patch0021:     0021-ocaml-Use-Caml_state_opt-in-preference-to-caml_state.patch
-Patch0022:     0022-generator-Add-chown-option-for-virt-customize.patch
-Patch0023:     0023-lib-remove-guestfs_int_cmd_clear_close_files.patch
-Patch0024:     0024-docs-fix-broken-link-in-the-guestfs-manual.patch
-Patch0025:     0025-docs-clarify-sockdir-s-separation.patch
-Patch0026:     0026-lib-move-guestfs_int_create_socketname-from-launch.c.patch
-Patch0027:     0027-generator-customize-Add-new-StringTriplet-for-use-by.patch
-Patch0028:     0028-daemon-lvm-Do-reverse-device-name-translation-on-pvs.patch
-Patch0029:     0029-ruby-Replace-MiniTest-with-Minitest.patch
-Patch0030:     0030-ruby-Get-rid-of-old-Test-Unit-compatibility.patch
-Patch0031:     0031-generator-Sort-virt-customize-options-into-alphabeti.patch
-Patch0032:     0032-generator-Add-new-virt-customize-tar-in-operation.patch
-Patch0033:     0033-New-mailing-list-email-address.patch
-Patch0034:     0034-New-mailing-list-archives.patch
-Patch0035:     0035-lib-Include-libxml-parser.h-for-xmlReadMemory.patch
-Patch0036:     0036-ocaml-Use-Gc.finalise-instead-of-a-C-finalizer.patch
-Patch0037:     0037-ocaml-Nullify-custom-block-before-releasing-runtime-.patch
-Patch0038:     0038-Update-common-submodule.patch
-Patch0039:     0039-tests-Test-guestfish-key-all-.-selector.patch
-Patch0040:     0040-daemon-part_get_gpt_type-Remove-unhelpful-MBR-fallba.patch
+Patch0001:     0001-daemon-selinux-relabel-don-t-exclude-selinux-if-it-s.patch
+Patch0002:     0002-daemon-selinux-relabel-search-for-invalid-option-in-.patch
+Patch0003:     0003-daemon-selinux-relabel-run-setfiles-with-T-0-if-supp.patch
+Patch0004:     0004-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
+Patch0005:     0005-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
+Patch0006:     0006-Remove-virt-dib.patch
+Patch0007:     0007-lib-Choose-q35-machine-type-for-x86-64.patch
+Patch0008:     0008-LUKS-on-LVM-inspection-test-rename-VGs-and-LVs.patch
+Patch0009:     0009-LUKS-on-LVM-inspection-test-test-dev-mapper-VG-LV-tr.patch
+Patch0010:     0010-fuse-Don-t-call-fclose-NULL-on-error-paths.patch
+Patch0011:     0011-ocaml-implicit_close-test-collect-all-currently-unre.patch
+Patch0012:     0012-ocaml-Replace-old-enter-leave_blocking_section-calls.patch
+Patch0013:     0013-ocaml-Release-runtime-lock-around-guestfs_close.patch
+Patch0014:     0014-ocaml-Conditionally-acquire-the-lock-in-callbacks.patch
+Patch0015:     0015-ocaml-Fix-guestfs_065_implicit_close.ml-for-OCaml-5.patch
+Patch0016:     0016-ocaml-Use-Caml_state_opt-in-preference-to-caml_state.patch
+Patch0017:     0017-generator-Add-chown-option-for-virt-customize.patch
+Patch0018:     0018-lib-remove-guestfs_int_cmd_clear_close_files.patch
+Patch0019:     0019-docs-fix-broken-link-in-the-guestfs-manual.patch
+Patch0020:     0020-docs-clarify-sockdir-s-separation.patch
+Patch0021:     0021-lib-move-guestfs_int_create_socketname-from-launch.c.patch
+Patch0022:     0022-generator-customize-Add-new-StringTriplet-for-use-by.patch
+Patch0023:     0023-daemon-lvm-Do-reverse-device-name-translation-on-pvs.patch
+Patch0024:     0024-ruby-Replace-MiniTest-with-Minitest.patch
+Patch0025:     0025-ruby-Get-rid-of-old-Test-Unit-compatibility.patch
+Patch0026:     0026-generator-Sort-virt-customize-options-into-alphabeti.patch
+Patch0027:     0027-generator-Add-new-virt-customize-tar-in-operation.patch
+Patch0028:     0028-New-mailing-list-email-address.patch
+Patch0029:     0029-New-mailing-list-archives.patch
+Patch0030:     0030-lib-Include-libxml-parser.h-for-xmlReadMemory.patch
+Patch0031:     0031-ocaml-Use-Gc.finalise-instead-of-a-C-finalizer.patch
+Patch0032:     0032-ocaml-Nullify-custom-block-before-releasing-runtime-.patch
+Patch0033:     0033-Update-common-submodule.patch
+Patch0034:     0034-tests-Test-guestfish-key-all-.-selector.patch
+Patch0035:     0035-generator-customize.ml-Split-chown-parameter-on-char.patch
+Patch0036:     0036-Update-common-submodule.patch
+Patch0037:     0037-New-APIs-findfs_partuuid-and-findfs_partlabel.patch
+Patch0038:     0038-inspection-Resolve-PARTUUID-and-PARTLABEL-in-etc-fst.patch
 
 %if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
@@ -149,8 +147,7 @@ BuildRequires: perl(Pod::Man)
 BuildRequires: /usr/bin/pod2text
 BuildRequires: po4a
 BuildRequires: augeas-devel >= 1.7.0
-# Waiting for https://bugzilla.redhat.com/show_bug.cgi?id=2168634
-#BuildRequires: ocaml-augeas-devel >= 0.6
+BuildRequires: ocaml-augeas-devel >= 0.6
 BuildRequires: readline-devel
 BuildRequires: xorriso
 BuildRequires: libxml2-devel
@@ -1144,9 +1141,25 @@ rm ocaml/html/.gitignore
 
 
 %changelog
-* Thu Aug 29 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-8
-- daemon: part_get_gpt_type: Remove unhelpful MBR fallback behaviour
-  resolves: RHEL-56697
+* Tue Jul 09 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-1
+- Update to libguestfs 1.50.2
+  resolves: RHEL-46775
+
+* Mon Jul 08 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-12
+- inspection: Resolve PARTUUID= and PARTLABEL= in /etc/fstab
+  resolves: RHEL-40142, RHEL-46596
+
+* Fri Jun 28 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-11
+- Fix (rare) undetected truncation of 64 bit int results to 32 bits
+  resolves: RHEL-45466
+
+* Thu Jun 20 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-10
+- Remove bundled ocaml-augeas
+  resolves: RHEL-32142
+
+* Wed Apr 24 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-9
+- Add support for nbd+unix:// URIs
+  resolves: RHEL-33851
 
 * Thu Dec 14 2023 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.1-7
 - Add --key all:... selector

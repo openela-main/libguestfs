@@ -1,0 +1,86 @@
+From 04a45af93d21880e54a386386313100a04b91ca7 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Mon, 8 Jul 2024 14:37:22 +0100
+Subject: [PATCH] New APIs: findfs_partuuid and findfs_partlabel
+
+These search for partitions by UUID or label (name).  They only work
+for GPT.
+
+(cherry picked from commit 1816651f3c138600ad2e5ba0d6437b4753333818)
+---
+ daemon/findfs.ml          |  4 ++++
+ generator/actions_core.ml | 24 ++++++++++++++++++++++++
+ generator/proc_nr.ml      |  2 ++
+ lib/MAX_PROC_NR           |  2 +-
+ 4 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/daemon/findfs.ml b/daemon/findfs.ml
+index cf2ba4a8..a94e0ce7 100644
+--- a/daemon/findfs.ml
++++ b/daemon/findfs.ml
+@@ -27,6 +27,10 @@ let rec findfs_uuid uuid =
+   findfs "UUID" uuid
+ and findfs_label label =
+   findfs "LABEL" label
++and findfs_partuuid uuid =
++  findfs "PARTUUID" uuid
++and findfs_partlabel label =
++  findfs "PARTLABEL" label
+ 
+ and findfs tag str =
+   (* Kill the cache file, forcing blkid to reread values from the
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index 314bb0ae..c3afe810 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -5688,6 +5688,30 @@ filesystem can be found.
+ 
+ To find the label of a filesystem, use C<guestfs_vfs_label>." };
+ 
++  { defaults with
++    name = "findfs_partuuid"; added = (1, 5, 3);
++    style = RString (RDevice, "device"), [String (PlainString, "uuid")], [];
++    impl = OCaml "Findfs.findfs_partuuid";
++    shortdesc = "find a partition by UUID";
++    longdesc = "\
++This command searches the partitions and returns the one
++which has the given partition UUID.  An error is returned if no such
++partition can be found.
++
++To find the UUID of a partition, use C<guestfs_blkid> (C<PART_ENTRY_UUID>)." };
++
++  { defaults with
++    name = "findfs_partlabel"; added = (1, 5, 3);
++    style = RString (RDevice, "device"), [String (PlainString, "label")], [];
++    impl = OCaml "Findfs.findfs_partlabel";
++    shortdesc = "find a partition by label";
++    longdesc = "\
++This command searches the partitions and returns the one
++which has the given label.  An error is returned if no such
++partition can be found.
++
++To find the label of a partition, use C<guestfs_blkid> (C<PART_ENTRY_NAME>)." };
++
+   { defaults with
+     name = "is_chardev"; added = (1, 5, 10);
+     style = RBool "flag", [String (Pathname, "path")], [OBool "followsymlinks"];
+diff --git a/generator/proc_nr.ml b/generator/proc_nr.ml
+index f71a849c..56cd97a9 100644
+--- a/generator/proc_nr.ml
++++ b/generator/proc_nr.ml
+@@ -516,6 +516,8 @@ let proc_nr = [
+ 511, "internal_readdir";
+ 512, "clevis_luks_unlock";
+ 513, "inspect_get_build_id";
++514, "findfs_partuuid";
++515, "findfs_partlabel";
+ ]
+ 
+ (* End of list.  If adding a new entry, add it at the end of the list
+diff --git a/lib/MAX_PROC_NR b/lib/MAX_PROC_NR
+index 31cf34b8..3cda32fc 100644
+--- a/lib/MAX_PROC_NR
++++ b/lib/MAX_PROC_NR
+@@ -1 +1 @@
+-513
++515
