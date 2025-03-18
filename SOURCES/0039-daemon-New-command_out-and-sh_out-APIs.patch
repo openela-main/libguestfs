@@ -1,0 +1,309 @@
+From d8142f0dc4c422b7ea372d1291807bf7492c1662 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 19 Feb 2025 11:11:24 +0000
+Subject: [PATCH] daemon: New command_out and sh_out APIs
+
+These APIs allow you to capture output from guest commands that
+generate more output than the protocol limit allows.
+
+Thanks: Nijin Ashok
+Fixes: https://issues.redhat.com/browse/RHEL-80159
+(cherry picked from commit 47ac4871b2c1dcde317d116c52b13916ab368ea4)
+(cherry picked from commit 42ae34115f1e6bff2b501d8ff3ab9ac26c892a22)
+---
+ .gitignore                                |  1 +
+ daemon/sh.c                               | 42 +++++++++++++
+ generator/actions_core.ml                 | 25 ++++++++
+ generator/proc_nr.ml                      |  2 +
+ lib/MAX_PROC_NR                           |  2 +-
+ tests/Makefile.am                         | 10 ++++
+ tests/large-command/test-large-command.c  | 46 ++++++++++++++
+ tests/large-command/test-large-command.sh | 73 +++++++++++++++++++++++
+ 8 files changed, 200 insertions(+), 1 deletion(-)
+ create mode 100644 tests/large-command/test-large-command.c
+ create mode 100755 tests/large-command/test-large-command.sh
+
+diff --git a/.gitignore b/.gitignore
+index 00e59fb3..73a561c2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -422,6 +422,7 @@ Makefile.in
+ /tests/disks/test-add-disks
+ /tests/disks/test-qemu-drive-libvirt.xml
+ /tests/events/test-libvirt-auth-callbacks
++/tests/large-command/test-large-command
+ /tests/mount-local/test-parallel-mount-local
+ /tests/mountable/test-internal-parse-mountable
+ /tests/parallel/test-parallel
+diff --git a/daemon/sh.c b/daemon/sh.c
+index 92ce08be..c8fdf0bf 100644
+--- a/daemon/sh.c
++++ b/daemon/sh.c
+@@ -299,6 +299,40 @@ do_command_lines (char *const *argv)
+   return lines;			/* Caller frees. */
+ }
+ 
++/* Has one FileOut parameter. */
++int
++do_command_out (char *const *argv)
++{
++  /* We could in theory spool the command to output as it is running,
++   * but error handling mid-command, and progress bars would not work
++   * if we did that.  If we encounter a case where this is a problem,
++   * another approach would be to save the output in a temporary file.
++   */
++  CLEANUP_FREE char *out = NULL;
++  size_t i, n;
++
++  out = do_command (argv);
++  if (out == NULL)
++    return -1;
++
++  /* Send the reply message.  We know that we're not going to fail now
++   * (except for client cancellation).
++   */
++  reply (NULL, NULL);
++
++  n = strlen (out);
++  for (i = 0; i < n; i += GUESTFS_MAX_CHUNK_SIZE) {
++    if (send_file_write (out+i, MIN (GUESTFS_MAX_CHUNK_SIZE, n-i)) < 0)
++      return -1;
++    notify_progress (i, n);
++  }
++
++  if (send_file_end (0))
++    return -1;
++
++  return 0;
++}
++
+ char *
+ do_sh (const char *cmd)
+ {
+@@ -314,3 +348,11 @@ do_sh_lines (const char *cmd)
+ 
+   return do_command_lines ((char **) argv);
+ }
++
++int
++do_sh_out (const char *cmd)
++{
++  const char *argv[] = { "/bin/sh", "-c", cmd, NULL };
++
++  return do_command_out ((char **) argv);
++}
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index c3afe810..60c4b577 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -2352,6 +2352,19 @@ result into a list of lines.
+ 
+ See also: C<guestfs_sh_lines>" };
+ 
++  { defaults with
++    name = "command_out"; added = (1, 55, 6);
++    style = RErr, [StringList (PlainString, "arguments"); String (FileOut, "output")], [];
++    progress = true; cancellable = true;
++    test_excuse = "there is a separate test in the tests directory";
++    shortdesc = "run a command from the guest filesystem";
++    longdesc = "\
++This is the same as C<guestfs_command>, but streams the output
++back, handling the case where the output from the command is
++larger than the protocol limit.
++
++See also: C<guestfs_sh_out>" };
++
+   { defaults with
+     name = "statvfs"; added = (1, 9, 2);
+     style = RStruct ("statbuf", "statvfs"), [String (Pathname, "path")], [];
+@@ -3454,6 +3467,18 @@ into a list of lines.
+ 
+ See also: C<guestfs_command_lines>" };
+ 
++  { defaults with
++    name = "sh_out"; added = (1, 55, 6);
++    style = RErr, [String (PlainString, "command"); String (FileOut, "output")], [];
++    test_excuse = "there is a separate test in the tests directory";
++    shortdesc = "run a command via the shell";
++    longdesc = "\
++This is the same as C<guestfs_sh>, but streams the output
++back, handling the case where the output from the command is
++larger than the protocol limit.
++
++See also: C<guestfs_command_out>" };
++
+   { defaults with
+     name = "glob_expand"; added = (1, 0, 50);
+     (* Use Pathname here, and hence ABS_PATH (pattern,...) in
+diff --git a/generator/proc_nr.ml b/generator/proc_nr.ml
+index 56cd97a9..0ce12e66 100644
+--- a/generator/proc_nr.ml
++++ b/generator/proc_nr.ml
+@@ -518,6 +518,8 @@ let proc_nr = [
+ 513, "inspect_get_build_id";
+ 514, "findfs_partuuid";
+ 515, "findfs_partlabel";
++516, "command_out";
++517, "sh_out";
+ ]
+ 
+ (* End of list.  If adding a new entry, add it at the end of the list
+diff --git a/lib/MAX_PROC_NR b/lib/MAX_PROC_NR
+index 3cda32fc..ac953cd0 100644
+--- a/lib/MAX_PROC_NR
++++ b/lib/MAX_PROC_NR
+@@ -1 +1 @@
+-515
++517
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index b87d4ce2..9ad3cd1d 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -440,6 +440,16 @@ EXTRA_DIST += http/test-http.py
+ TESTS += journal/test-journal.pl
+ EXTRA_DIST += journal/test-journal.pl
+ 
++# This binary must be statically linked.  It is used for testing
++# the "guestfs_command_out" function.
++
++large_command_test_large_command_SOURCES = large-command/test-large-command.c
++large_command_test_large_command_LDFLAGS = -all-static
++
++check_PROGRAMS += large-command/test-large-command
++TESTS += large-command/test-large-command.sh
++EXTRA_DIST += large-command/test-large-command.sh
++
+ TESTS += \
+ 	luks/test-luks.sh \
+ 	luks/test-luks-list.sh \
+diff --git a/tests/large-command/test-large-command.c b/tests/large-command/test-large-command.c
+new file mode 100644
+index 00000000..0abf435e
+--- /dev/null
++++ b/tests/large-command/test-large-command.c
+@@ -0,0 +1,46 @@
++/* libguestfs
++ * Copyright (C) 2009-2025 Red Hat Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++/* This program, which must be statically linked, is used to test the
++ * guestfs_command_out and guestfs_sh_out functions.
++ */
++
++#include <config.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++#include <error.h>
++
++#define STREQ(a,b) (strcmp((a),(b)) == 0)
++
++int
++main (int argc, char *argv[])
++{
++  size_t n, i;
++
++  if (argc > 1) {
++    if (sscanf (argv[1], "%zu", &n) != 1)
++      error (EXIT_FAILURE, 0, "could not parse parameter: %s", argv[1]);
++    for (i = 0; i < n; ++i)
++      putchar ('x');
++  } else
++    error (EXIT_FAILURE, 0, "missing parameter");
++
++  exit (EXIT_SUCCESS);
++}
+diff --git a/tests/large-command/test-large-command.sh b/tests/large-command/test-large-command.sh
+new file mode 100755
+index 00000000..abcfa868
+--- /dev/null
++++ b/tests/large-command/test-large-command.sh
+@@ -0,0 +1,73 @@
++#!/bin/bash -
++# libguestfs
++# Copyright (C) 2025 Red Hat Inc.
++#
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++#
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this program; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++
++# Test command-out.  We can't easily test sh-out without having a
++# shell (which requires a full guest), however the code path for both
++# is essentially identical.
++
++set -e
++
++$TEST_FUNCTIONS
++
++skip_if_skipped
++
++skip_unless stat --version
++
++# Binary must exist and must be linked statically.
++bin=large-command/test-large-command
++skip_unless test -x $bin
++skip_unless bash -c " ldd $bin |& grep -sq 'not a dynamic executable' "
++
++disk=large-command/test.img
++rm -f $disk
++
++out1=large-command/test.out1
++out2=large-command/test.out2
++out3=large-command/test.out3
++out4=large-command/test.out4
++
++# Must be larger than protocol size, currently 4MB.
++size=$((10 * 1024 * 1024))
++
++guestfish -x -N $disk=fs -m /dev/sda1 <<EOF
++upload $bin /test-large-command
++chmod 0755 /test-large-command
++command-out "/test-large-command $size" $out1
++# Check smaller sizes work as well.
++command-out "/test-large-command 0" $out2
++command-out "/test-large-command 1" $out3
++command-out "/test-large-command 80" $out4
++EOF
++
++ls -l $out1 $out2 $out3 $out4
++
++cat $out2
++cat $out3
++cat $out4
++
++# Check the sizes are correct.
++test "$( stat -c '%s' $out1 )" -eq $size
++test "$( stat -c '%s' $out2 )" -eq 0
++test "$( stat -c '%s' $out3 )" -eq 1
++test "$( stat -c '%s' $out4 )" -eq 80
++
++# Check the content is correct, for the smaller files.
++test `cat $out3` = "x"
++test `cat $out4` = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
++
++rm $disk $out1 $out2 $out3 $out4

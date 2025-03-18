@@ -45,7 +45,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.50.2
-Release:       1%{?dist}
+Release:       2%{?dist}
 License:       LGPLv2+
 
 # Build only for architectures that have a kernel
@@ -129,6 +129,7 @@ Patch0035:     0035-generator-customize.ml-Split-chown-parameter-on-char.patch
 Patch0036:     0036-Update-common-submodule.patch
 Patch0037:     0037-New-APIs-findfs_partuuid-and-findfs_partlabel.patch
 Patch0038:     0038-inspection-Resolve-PARTUUID-and-PARTLABEL-in-etc-fst.patch
+Patch0039:     0039-daemon-New-command_out-and-sh_out-APIs.patch
 
 %if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
@@ -800,7 +801,11 @@ fi
 
 # 'INSTALLDIRS' ensures that Perl and Ruby libs are installed in the
 # vendor dir not the site dir.
-make V=1 INSTALLDIRS=vendor %{?_smp_mflags}
+#
+# In RHEL 9.5-z, %%{?_smp_mflags} causes a race condition in the
+# build.  I believe this file is generated in parallel:
+# podwrapper.pl: blocksize-option.pod: cannot find input file on path at /builddir/build/BUILD/libguestfs-1.50.2/podwrapper.pl line 672.
+make V=1 INSTALLDIRS=vendor
 
 
 %check
@@ -1141,6 +1146,10 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Thu Feb 27 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-2
+- Add new APIs to allow command output > 4MB
+  resolves: RHEL-81095
+
 * Tue Jul 09 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-1
 - Update to libguestfs 1.50.2
   resolves: RHEL-46775
