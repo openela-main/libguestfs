@@ -45,7 +45,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.50.2
-Release:       2%{?dist}
+Release:       3%{?dist}
 License:       LGPLv2+
 
 # Build only for architectures that have a kernel
@@ -130,6 +130,15 @@ Patch0036:     0036-Update-common-submodule.patch
 Patch0037:     0037-New-APIs-findfs_partuuid-and-findfs_partlabel.patch
 Patch0038:     0038-inspection-Resolve-PARTUUID-and-PARTLABEL-in-etc-fst.patch
 Patch0039:     0039-daemon-New-command_out-and-sh_out-APIs.patch
+Patch0040:     0040-lib-Print-kernel-utsname-in-debug-output.patch
+Patch0041:     0041-daemon-inspect-Add-some-debugging-of-usr-merging.patch
+Patch0042:     0042-generator-Implement-struct-FDevice-type.patch
+Patch0043:     0043-generator-Use-new-FDevice-type-for-the-pvs-full-pv_n.patch
+Patch0044:     0044-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-uuid-in.patch
+Patch0045:     0045-generator-Fix-implementation-of-FUUID-for-OCaml-func.patch
+Patch0046:     0046-Update-common-submodule.patch
+Patch0047:     0047-daemon-Rewrite-pvs-vgs-lvs-full-APIs-in-OCaml.patch
+Patch0048:     0048-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-id-dm-u.patch
 
 %if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
@@ -1146,6 +1155,10 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Tue Apr 29 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-3
+- Fix virt-v2v conversion of split /usr Ubuntu 22+
+  resolves: RHEL-88803
+
 * Thu Feb 27 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-2
 - Add new APIs to allow command output > 4MB
   resolves: RHEL-81095
