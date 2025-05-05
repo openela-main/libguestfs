@@ -45,7 +45,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.50.2
-Release:       3%{?dist}
+Release:       4%{?dist}
 License:       LGPLv2+
 
 # Build only for architectures that have a kernel
@@ -139,6 +139,8 @@ Patch0045:     0045-generator-Fix-implementation-of-FUUID-for-OCaml-func.patch
 Patch0046:     0046-Update-common-submodule.patch
 Patch0047:     0047-daemon-Rewrite-pvs-vgs-lvs-full-APIs-in-OCaml.patch
 Patch0048:     0048-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-id-dm-u.patch
+Patch0049:     0049-daemon-fstrim.c-Issue-sync_disks-after-fstrim.patch
+Patch0050:     0050-daemon-fstrim.c-Run-the-fstrim-command-twice.patch
 
 %if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
@@ -1155,6 +1157,10 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Wed Apr 30 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-4
+- Run the fstrim command twice to workaround RHEL 9.5 kernel trimming bug
+  resolves: RHEL-89045
+
 * Tue Apr 29 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-3
 - Fix virt-v2v conversion of split /usr Ubuntu 22+
   resolves: RHEL-88803
