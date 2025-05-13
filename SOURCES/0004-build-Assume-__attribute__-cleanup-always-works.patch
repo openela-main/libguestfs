@@ -1,0 +1,409 @@
+From e37768d8892d6f467c7834f8b142b89f8f0af7dc Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 18 Oct 2024 21:52:21 +0100
+Subject: [PATCH] build: Assume __attribute__((cleanup)) always works
+
+All recent compilers support this (except MS compilers which we don't
+care about).  Assume it is supported.  We test it in ./configure and
+hard fail if it doesn't work.
+
+We still define HAVE_ATTRIBUTE_CLEANUP but you can now assume it is
+always defined and don't have to check it.
+---
+ common                 |  2 +-
+ daemon/daemon.h        |  9 ---------
+ daemon/sh.c            |  5 -----
+ daemon/yara.c          |  8 --------
+ generator/c.ml         | 10 ----------
+ generator/daemon.ml    | 15 ---------------
+ lib/guestfs-internal.h |  8 --------
+ lib/info.c             |  5 -----
+ lib/launch-libvirt.c   |  5 -----
+ lib/qemu.c             |  5 -----
+ m4/guestfs-c.m4        |  7 ++-----
+ 11 files changed, 3 insertions(+), 76 deletions(-)
+
+Submodule common b6e703dc..01c53226:
+diff --git a/common/structs/structs-cleanups.h b/common/structs/structs-cleanups.h
+index b43dbd75..c6e7fd1e 100644
+--- a/common/structs/structs-cleanups.h
++++ b/common/structs/structs-cleanups.h
+@@ -28,7 +28,6 @@
+ #ifndef GUESTFS_STRUCTS_CLEANUPS_H_
+ #define GUESTFS_STRUCTS_CLEANUPS_H_
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_FREE_INT_BOOL \
+   __attribute__((cleanup(guestfs_int_cleanup_free_int_bool)))
+ #define CLEANUP_FREE_INT_BOOL_LIST \
+@@ -137,62 +136,6 @@
+   __attribute__((cleanup(guestfs_int_cleanup_free_yara_detection)))
+ #define CLEANUP_FREE_YARA_DETECTION_LIST \
+   __attribute__((cleanup(guestfs_int_cleanup_free_yara_detection_list)))
+-#else /* !HAVE_ATTRIBUTE_CLEANUP */
+-#define CLEANUP_FREE_INT_BOOL
+-#define CLEANUP_FREE_INT_BOOL_LIST
+-#define CLEANUP_FREE_LVM_PV
+-#define CLEANUP_FREE_LVM_PV_LIST
+-#define CLEANUP_FREE_LVM_VG
+-#define CLEANUP_FREE_LVM_VG_LIST
+-#define CLEANUP_FREE_LVM_LV
+-#define CLEANUP_FREE_LVM_LV_LIST
+-#define CLEANUP_FREE_STAT
+-#define CLEANUP_FREE_STAT_LIST
+-#define CLEANUP_FREE_STATNS
+-#define CLEANUP_FREE_STATNS_LIST
+-#define CLEANUP_FREE_STATVFS
+-#define CLEANUP_FREE_STATVFS_LIST
+-#define CLEANUP_FREE_DIRENT
+-#define CLEANUP_FREE_DIRENT_LIST
+-#define CLEANUP_FREE_VERSION
+-#define CLEANUP_FREE_VERSION_LIST
+-#define CLEANUP_FREE_XATTR
+-#define CLEANUP_FREE_XATTR_LIST
+-#define CLEANUP_FREE_INOTIFY_EVENT
+-#define CLEANUP_FREE_INOTIFY_EVENT_LIST
+-#define CLEANUP_FREE_PARTITION
+-#define CLEANUP_FREE_PARTITION_LIST
+-#define CLEANUP_FREE_APPLICATION
+-#define CLEANUP_FREE_APPLICATION_LIST
+-#define CLEANUP_FREE_APPLICATION2
+-#define CLEANUP_FREE_APPLICATION2_LIST
+-#define CLEANUP_FREE_ISOINFO
+-#define CLEANUP_FREE_ISOINFO_LIST
+-#define CLEANUP_FREE_MDSTAT
+-#define CLEANUP_FREE_MDSTAT_LIST
+-#define CLEANUP_FREE_BTRFSSUBVOLUME
+-#define CLEANUP_FREE_BTRFSSUBVOLUME_LIST
+-#define CLEANUP_FREE_BTRFSQGROUP
+-#define CLEANUP_FREE_BTRFSQGROUP_LIST
+-#define CLEANUP_FREE_BTRFSBALANCE
+-#define CLEANUP_FREE_BTRFSBALANCE_LIST
+-#define CLEANUP_FREE_BTRFSSCRUB
+-#define CLEANUP_FREE_BTRFSSCRUB_LIST
+-#define CLEANUP_FREE_XFSINFO
+-#define CLEANUP_FREE_XFSINFO_LIST
+-#define CLEANUP_FREE_UTSNAME
+-#define CLEANUP_FREE_UTSNAME_LIST
+-#define CLEANUP_FREE_HIVEX_NODE
+-#define CLEANUP_FREE_HIVEX_NODE_LIST
+-#define CLEANUP_FREE_HIVEX_VALUE
+-#define CLEANUP_FREE_HIVEX_VALUE_LIST
+-#define CLEANUP_FREE_INTERNAL_MOUNTABLE
+-#define CLEANUP_FREE_INTERNAL_MOUNTABLE_LIST
+-#define CLEANUP_FREE_TSK_DIRENT
+-#define CLEANUP_FREE_TSK_DIRENT_LIST
+-#define CLEANUP_FREE_YARA_DETECTION
+-#define CLEANUP_FREE_YARA_DETECTION_LIST
+-#endif /* !HAVE_ATTRIBUTE_CLEANUP */
+ 
+ /* These functions are used internally by the CLEANUP_* macros.
+  * Don't call them directly.
+diff --git a/common/utils/cleanups.h b/common/utils/cleanups.h
+index 932114f6..be52d072 100644
+--- a/common/utils/cleanups.h
++++ b/common/utils/cleanups.h
+@@ -19,7 +19,6 @@
+ #ifndef GUESTFS_CLEANUPS_H_
+ #define GUESTFS_CLEANUPS_H_
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_FREE                                    \
+   __attribute__((cleanup(guestfs_int_cleanup_free)))
+ #define CLEANUP_HASH_FREE                                       \
+@@ -50,23 +49,6 @@
+   __attribute__((cleanup(guestfs_int_cleanup_xmlXPathFreeObject)))
+ #define CLEANUP_PCRE2_MATCH_DATA_FREE                                   \
+   __attribute__((cleanup(guestfs_int_cleanup_pcre2_match_data_free)))
+-#else
+-#define CLEANUP_FREE
+-#define CLEANUP_HASH_FREE
+-#define CLEANUP_UNLINK_FREE
+-#define CLEANUP_CLOSE
+-#define CLEANUP_FCLOSE
+-#define CLEANUP_PCLOSE
+-#define CLEANUP_FREE_STRING_LIST
+-#define CLEANUP_XMLFREE
+-#define CLEANUP_XMLBUFFERFREE
+-#define CLEANUP_XMLFREEDOC
+-#define CLEANUP_XMLFREEURI
+-#define CLEANUP_XMLFREETEXTWRITER
+-#define CLEANUP_XMLXPATHFREECONTEXT
+-#define CLEANUP_XMLXPATHFREEOBJECT
+-#define CLEANUP_PCRE2_MATCH_DATA_FREE
+-#endif
+ 
+ /* These functions are used internally by the CLEANUP_* macros.
+  * Don't call them directly.
+diff --git a/daemon/daemon.h b/daemon/daemon.h
+index e050588c..5fc53245 100644
+--- a/daemon/daemon.h
++++ b/daemon/daemon.h
+@@ -93,11 +93,7 @@ extern char *read_whole_file (const char *filename, size_t *size_r);
+ extern char *mountable_to_string (const mountable_t *mountable);
+ extern void cleanup_free_mountable (mountable_t *mountable);
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_FREE_MOUNTABLE __attribute__((cleanup(cleanup_free_mountable)))
+-#else
+-#define CLEANUP_FREE_MOUNTABLE
+-#endif
+ 
+ /* cleanups.c */
+ /* These functions are used internally by the CLEANUP_* macros.
+@@ -106,13 +102,8 @@ extern void cleanup_free_mountable (mountable_t *mountable);
+ extern void cleanup_aug_close (void *ptr);
+ extern void cleanup_free_stringsbuf (void *ptr);
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_AUG_CLOSE __attribute__((cleanup(cleanup_aug_close)))
+ #define CLEANUP_FREE_STRINGSBUF __attribute__((cleanup(cleanup_free_stringsbuf)))
+-#else
+-#define CLEANUP_AUG_CLOSE
+-#define CLEANUP_FREE_STRINGSBUF
+-#endif
+ 
+ /* mount.c */
+ extern int is_root_mounted (void);
+diff --git a/daemon/sh.c b/daemon/sh.c
+index 92ce08be..21d4deea 100644
+--- a/daemon/sh.c
++++ b/daemon/sh.c
+@@ -32,13 +32,8 @@
+ 
+ #include "ignore-value.h"
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_BIND_STATE __attribute__((cleanup(free_bind_state)))
+ #define CLEANUP_RESOLVER_STATE __attribute__((cleanup(free_resolver_state)))
+-#else
+-#define CLEANUP_BIND_STATE
+-#define CLEANUP_RESOLVER_STATE
+-#endif
+ 
+ struct bind_state {
+   bool mounted;
+diff --git a/daemon/yara.c b/daemon/yara.c
+index 21137b73..9350dd27 100644
+--- a/daemon/yara.c
++++ b/daemon/yara.c
+@@ -39,12 +39,8 @@
+ 
+ #include <yara.h>
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_DESTROY_YARA_COMPILER                           \
+   __attribute__((cleanup(cleanup_destroy_yara_compiler)))
+-#else
+-#define CLEANUP_DESTROY_YARA_COMPILER
+-#endif
+ 
+ struct write_callback_data {
+   int fd;
+@@ -208,10 +204,6 @@ compile_rules_file (const char *rules_path)
+   }
+ 
+  err:
+-#ifndef HAVE_ATTRIBUTE_CLEANUP
+-  yr_compiler_destroy (compiler);
+-#endif
+-
+   return ret;
+ }
+ 
+diff --git a/generator/c.ml b/generator/c.ml
+index 447059b8..838e7f42 100644
+--- a/generator/c.ml
++++ b/generator/c.ml
+@@ -817,7 +817,6 @@ and generate_client_structs_cleanups_h () =
+ #ifndef GUESTFS_STRUCTS_CLEANUPS_H_
+ #define GUESTFS_STRUCTS_CLEANUPS_H_
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ ";
+ 
+   List.iter (
+@@ -828,16 +827,7 @@ and generate_client_structs_cleanups_h () =
+       pr "  __attribute__((cleanup(guestfs_int_cleanup_free_%s_list)))\n" name
+   ) structs;
+ 
+-  pr "#else /* !HAVE_ATTRIBUTE_CLEANUP */\n";
+-
+-  List.iter (
+-    fun { s_name = name } ->
+-      pr "#define CLEANUP_FREE_%s\n" (String.uppercase_ascii name);
+-      pr "#define CLEANUP_FREE_%s_LIST\n" (String.uppercase_ascii name)
+-  ) structs;
+-
+   pr "\
+-#endif /* !HAVE_ATTRIBUTE_CLEANUP */
+ 
+ /* These functions are used internally by the CLEANUP_* macros.
+  * Don't call them directly.
+diff --git a/generator/daemon.ml b/generator/daemon.ml
+index 78a2412d..9ab9e12d 100644
+--- a/generator/daemon.ml
++++ b/generator/daemon.ml
+@@ -127,8 +127,6 @@ let generate_daemon_stubs actions () =
+                     args_passed_to_daemon in
+ 
+       if args_passed_to_daemon <> [] then (
+-        pr "#ifdef HAVE_ATTRIBUTE_CLEANUP\n";
+-        pr "\n";
+         pr "#define CLEANUP_XDR_FREE_%s_ARGS \\\n" uc_name;
+         pr "    __attribute__((cleanup(cleanup_xdr_free_%s_args)))\n" name;
+         pr "\n";
+@@ -140,9 +138,6 @@ let generate_daemon_stubs actions () =
+            name;
+         pr "}\n";
+         pr "\n";
+-        pr "#else /* !HAVE_ATTRIBUTE_CLEANUP */\n";
+-        pr "#define CLEANUP_XDR_FREE_%s_ARGS\n" uc_name;
+-        pr "#endif /* !HAVE_ATTRIBUTE_CLEANUP */\n";
+         pr "\n"
+       );
+ 
+@@ -1315,7 +1310,6 @@ let generate_daemon_structs_cleanups_h () =
+ #ifndef GUESTFS_DAEMON_STRUCTS_CLEANUPS_H_
+ #define GUESTFS_DAEMON_STRUCTS_CLEANUPS_H_
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ ";
+ 
+   List.iter (
+@@ -1326,16 +1320,7 @@ let generate_daemon_structs_cleanups_h () =
+       pr "  __attribute__((cleanup(cleanup_free_int_%s_list)))\n" name
+   ) structs;
+ 
+-  pr "#else /* !HAVE_ATTRIBUTE_CLEANUP */\n";
+-
+-  List.iter (
+-    fun { s_name = name } ->
+-      pr "#define CLEANUP_FREE_%s\n" (String.uppercase_ascii name);
+-      pr "#define CLEANUP_FREE_%s_LIST\n" (String.uppercase_ascii name)
+-  ) structs;
+-
+   pr "\
+-#endif /* !HAVE_ATTRIBUTE_CLEANUP */
+ 
+ /* These functions are used internally by the CLEANUP_* macros.
+  * Don't call them directly.
+diff --git a/lib/guestfs-internal.h b/lib/guestfs-internal.h
+index 174ca135..f9f4628a 100644
+--- a/lib/guestfs-internal.h
++++ b/lib/guestfs-internal.h
+@@ -661,11 +661,7 @@ extern void guestfs_int_end_stringsbuf (guestfs_h *g, struct stringsbuf *sb);
+ 
+ extern void guestfs_int_free_stringsbuf (struct stringsbuf *sb);
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_FREE_STRINGSBUF __attribute__((cleanup(guestfs_int_cleanup_free_stringsbuf)))
+-#else
+-#define CLEANUP_FREE_STRINGSBUF
+-#endif
+ extern void guestfs_int_cleanup_free_stringsbuf (struct stringsbuf *sb);
+ 
+ /* proto.c */
+@@ -785,11 +781,7 @@ extern int guestfs_int_cmd_pipe_run (struct command *cmd, const char *mode);
+ extern int guestfs_int_cmd_pipe_wait (struct command *cmd);
+ extern char *guestfs_int_cmd_get_pipe_errors (struct command *cmd);
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_CMD_CLOSE __attribute__((cleanup(guestfs_int_cleanup_cmd_close)))
+-#else
+-#define CLEANUP_CMD_CLOSE
+-#endif
+ extern void guestfs_int_cleanup_cmd_close (struct command **);
+ 
+ /* launch-*.c constructors */
+diff --git a/lib/info.c b/lib/info.c
+index 4dee7a26..b60fc8b3 100644
+--- a/lib/info.c
++++ b/lib/info.c
+@@ -43,7 +43,6 @@
+ #include "guestfs-internal.h"
+ #include "guestfs-internal-actions.h"
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_JSON_T_DECREF __attribute__((cleanup(cleanup_json_t_decref)))
+ 
+ static void
+@@ -52,10 +51,6 @@ cleanup_json_t_decref (void *ptr)
+   json_decref (* (json_t **) ptr);
+ }
+ 
+-#else
+-#define CLEANUP_JSON_T_DECREF
+-#endif
+-
+ static json_t *get_json_output (guestfs_h *g, const char *filename);
+ static int qemu_img_supports_U_option (guestfs_h *g);
+ static void set_child_rlimits (struct command *);
+diff --git a/lib/launch-libvirt.c b/lib/launch-libvirt.c
+index fed6dcc8..d01f6578 100644
+--- a/lib/launch-libvirt.c
++++ b/lib/launch-libvirt.c
+@@ -97,7 +97,6 @@ xmlBufferDetach (xmlBufferPtr buf)
+ }
+ #endif
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_VIRSECRETFREE __attribute__((cleanup(cleanup_virSecretFree)))
+ 
+ static void
+@@ -108,10 +107,6 @@ cleanup_virSecretFree (void *ptr)
+     virSecretFree (secret_obj);
+ }
+ 
+-#else /* !HAVE_ATTRIBUTE_CLEANUP */
+-#define CLEANUP_VIRSECRETFREE
+-#endif
+-
+ /* List used to store a mapping of secret to libvirt secret UUID. */
+ struct secret {
+   char *secret;
+diff --git a/lib/qemu.c b/lib/qemu.c
+index 027790e4..886c92e5 100644
+--- a/lib/qemu.c
++++ b/lib/qemu.c
+@@ -46,7 +46,6 @@
+ #include "guestfs-internal.h"
+ #include "guestfs_protocol.h"
+ 
+-#ifdef HAVE_ATTRIBUTE_CLEANUP
+ #define CLEANUP_JSON_T_DECREF __attribute__((cleanup(cleanup_json_t_decref)))
+ 
+ static void
+@@ -55,10 +54,6 @@ cleanup_json_t_decref (void *ptr)
+   json_decref (* (json_t **) ptr);
+ }
+ 
+-#else
+-#define CLEANUP_JSON_T_DECREF
+-#endif
+-
+ struct qemu_data {
+   int generation;               /* MEMO_GENERATION read from qemu.stat */
+   uint64_t prev_size;           /* Size of qemu binary when cached. */
+diff --git a/m4/guestfs-c.m4 b/m4/guestfs-c.m4
+index 44c64b6d..49109cc8 100644
+--- a/m4/guestfs-c.m4
++++ b/m4/guestfs-c.m4
+@@ -109,15 +109,12 @@ main (int argc, char *argv[])
+     AC_MSG_RESULT([yes])
+     AC_DEFINE([HAVE_ATTRIBUTE_CLEANUP],[1],[Define to 1 if '__attribute__((cleanup(...)))' works with this compiler.])
+     ],[
+-    AC_MSG_WARN(
++    AC_MSG_ERROR(
+ ['__attribute__((cleanup(...)))' does not work.
+ 
+ You may not be using a sufficiently recent version of GCC or CLANG, or
+ you may be using a C compiler which does not support this attribute,
+-or the configure test may be wrong.
+-
+-The code will still compile, but is likely to leak memory and other
+-resources when it runs.])])
++or the configure test may be wrong.])])
+ dnl restore CFLAGS
+ CFLAGS="${acx_nbdkit_save_CFLAGS}"
+ 

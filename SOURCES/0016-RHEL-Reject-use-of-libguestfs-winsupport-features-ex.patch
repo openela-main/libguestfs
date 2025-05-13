@@ -1,4 +1,4 @@
-From b875668bfa9f596aba2e84999c7c9921f8dcb55e Mon Sep 17 00:00:00 2001
+From 0212c0fe22d0da787ca906d32d31f8b6d3e3ae3f Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Tue, 7 Jul 2015 09:28:03 -0400
 Subject: [PATCH] RHEL: Reject use of libguestfs-winsupport features except for
@@ -13,14 +13,14 @@ edits.
  3 files changed, 19 insertions(+)
 
 diff --git a/generator/c.ml b/generator/c.ml
-index 447059b8..0391dd3d 100644
+index 838e7f42..09181028 100644
 --- a/generator/c.ml
 +++ b/generator/c.ml
-@@ -1846,6 +1846,22 @@ and generate_client_actions actions () =
+@@ -1836,6 +1836,22 @@ and generate_client_actions actions () =
      check_args_validity c_name style;
      trace_call name c_name style;
  
-+    (* RHEL 8 *)
++    (* RHEL *)
 +    if name = "mount" || name = "mount_ro" || name = "mount_options" ||
 +       name = "mount_vfs" then (
 +      pr "  if (g->program && !STRPREFIX (g->program, \"virt-\")) {\n";

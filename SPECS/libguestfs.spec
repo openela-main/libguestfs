@@ -24,16 +24,8 @@
 # Verify tarball signature with GPGv2.
 %global verify_tarball_signature 1
 
-# If there are patches which touch autotools files, set this to 1.
-%if !0%{?rhel}
-%global patches_touch_autotools %{nil}
-%else
-# On RHEL the downstream patches always touch autotools files.
-%global patches_touch_autotools 1
-%endif
-
 # The source directory.
-%global source_directory 1.50-stable
+%global source_directory 1.54-stable
 
 # Filter perl provides.
 %{?perl_default_filter}
@@ -44,9 +36,9 @@
 Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
-Version:       1.50.2
+Version:       1.54.0
 Release:       4%{?dist}
-License:       LGPLv2+
+License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
 ExclusiveArch: %{kernel_arches}
@@ -79,72 +71,29 @@ Source7:       libguestfs.keyring
 # Maintainer script which helps with handling patches.
 Source8:       copy-patches.sh
 
-# This is a copy of the common/ submodule from libguestfs @v1.50.2.
-# We need it because the libguestfs tarball does not include common/
-# directories that are not used by libguestfs (eg. common/mlcustomize).
-# However the patches (below) patch files in those directories and so
-# do not apply properly to the libguestfs tarball.  Therefore before
-# applying the patches we unpack this in the common/ subdirectory.
-Source9:       libguestfs-common-1.50.2.tar.gz
-
 # Patches are maintained in the following repository:
-# https://github.com/libguestfs/libguestfs/commits/rhel-9.5
+# https://github.com/libguestfs/libguestfs/commits/rhel-9.6
 
 # Patches.
-Patch0001:     0001-daemon-selinux-relabel-don-t-exclude-selinux-if-it-s.patch
-Patch0002:     0002-daemon-selinux-relabel-search-for-invalid-option-in-.patch
-Patch0003:     0003-daemon-selinux-relabel-run-setfiles-with-T-0-if-supp.patch
-Patch0004:     0004-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
-Patch0005:     0005-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
-Patch0006:     0006-Remove-virt-dib.patch
-Patch0007:     0007-lib-Choose-q35-machine-type-for-x86-64.patch
-Patch0008:     0008-LUKS-on-LVM-inspection-test-rename-VGs-and-LVs.patch
-Patch0009:     0009-LUKS-on-LVM-inspection-test-test-dev-mapper-VG-LV-tr.patch
-Patch0010:     0010-fuse-Don-t-call-fclose-NULL-on-error-paths.patch
-Patch0011:     0011-ocaml-implicit_close-test-collect-all-currently-unre.patch
-Patch0012:     0012-ocaml-Replace-old-enter-leave_blocking_section-calls.patch
-Patch0013:     0013-ocaml-Release-runtime-lock-around-guestfs_close.patch
-Patch0014:     0014-ocaml-Conditionally-acquire-the-lock-in-callbacks.patch
-Patch0015:     0015-ocaml-Fix-guestfs_065_implicit_close.ml-for-OCaml-5.patch
-Patch0016:     0016-ocaml-Use-Caml_state_opt-in-preference-to-caml_state.patch
-Patch0017:     0017-generator-Add-chown-option-for-virt-customize.patch
-Patch0018:     0018-lib-remove-guestfs_int_cmd_clear_close_files.patch
-Patch0019:     0019-docs-fix-broken-link-in-the-guestfs-manual.patch
-Patch0020:     0020-docs-clarify-sockdir-s-separation.patch
-Patch0021:     0021-lib-move-guestfs_int_create_socketname-from-launch.c.patch
-Patch0022:     0022-generator-customize-Add-new-StringTriplet-for-use-by.patch
-Patch0023:     0023-daemon-lvm-Do-reverse-device-name-translation-on-pvs.patch
-Patch0024:     0024-ruby-Replace-MiniTest-with-Minitest.patch
-Patch0025:     0025-ruby-Get-rid-of-old-Test-Unit-compatibility.patch
-Patch0026:     0026-generator-Sort-virt-customize-options-into-alphabeti.patch
-Patch0027:     0027-generator-Add-new-virt-customize-tar-in-operation.patch
-Patch0028:     0028-New-mailing-list-email-address.patch
-Patch0029:     0029-New-mailing-list-archives.patch
-Patch0030:     0030-lib-Include-libxml-parser.h-for-xmlReadMemory.patch
-Patch0031:     0031-ocaml-Use-Gc.finalise-instead-of-a-C-finalizer.patch
-Patch0032:     0032-ocaml-Nullify-custom-block-before-releasing-runtime-.patch
-Patch0033:     0033-Update-common-submodule.patch
-Patch0034:     0034-tests-Test-guestfish-key-all-.-selector.patch
-Patch0035:     0035-generator-customize.ml-Split-chown-parameter-on-char.patch
-Patch0036:     0036-Update-common-submodule.patch
-Patch0037:     0037-New-APIs-findfs_partuuid-and-findfs_partlabel.patch
-Patch0038:     0038-inspection-Resolve-PARTUUID-and-PARTLABEL-in-etc-fst.patch
-Patch0039:     0039-daemon-New-command_out-and-sh_out-APIs.patch
-Patch0040:     0040-lib-Print-kernel-utsname-in-debug-output.patch
-Patch0041:     0041-daemon-inspect-Add-some-debugging-of-usr-merging.patch
-Patch0042:     0042-generator-Implement-struct-FDevice-type.patch
-Patch0043:     0043-generator-Use-new-FDevice-type-for-the-pvs-full-pv_n.patch
-Patch0044:     0044-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-uuid-in.patch
-Patch0045:     0045-generator-Fix-implementation-of-FUUID-for-OCaml-func.patch
-Patch0046:     0046-Update-common-submodule.patch
-Patch0047:     0047-daemon-Rewrite-pvs-vgs-lvs-full-APIs-in-OCaml.patch
-Patch0048:     0048-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-id-dm-u.patch
-Patch0049:     0049-daemon-fstrim.c-Issue-sync_disks-after-fstrim.patch
-Patch0050:     0050-daemon-fstrim.c-Run-the-fstrim-command-twice.patch
+Patch0001:     0001-website-Add-links-for-1.54-and-1.55-download-locatio.patch
+Patch0002:     0002-tests-gdisk-test-expand-gpt.pl-Implement-SKIP-rule-f.patch
+Patch0003:     0003-lib-inspect-osinfo.c-Add-Windows-Server-2025-osinfo.patch
+Patch0004:     0004-build-Assume-__attribute__-cleanup-always-works.patch
+Patch0005:     0005-appliance-Use-stable-owner-group-and-mtime-in-applia.patch
+Patch0006:     0006-appliance-Refactor-the-TAR_COMMAND-macro.patch
+Patch0007:     0007-build-Add-new-dependency-on-json-c.patch
+Patch0008:     0008-daemon-ldm.c-Replace-jansson-with-json-c.patch
+#Patch0009:     0009-common-Update-common-submodule.patch
+Patch0010:     0010-lib-info.c-Replace-jansson-with-json-c.patch
+Patch0011:     0011-lib-direct-Remove-test-for-qemu-mandatory-locking.patch
+Patch0012:     0012-lib-qemu.c-Replace-jansson-with-json-c.patch
+Patch0013:     0013-build-Remove-Jansson-dependency.patch
+Patch0014:     0014-website-Fix-link-to-latest-development-version.patch
+Patch0015:     0015-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
+Patch0016:     0016-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
+Patch0017:     0017-daemon-New-command_out-and-sh_out-APIs.patch
 
-%if 0%{patches_touch_autotools}
 BuildRequires: autoconf, automake, libtool, gettext-devel
-%endif
 
 # Basic build requirements.
 BuildRequires: gcc, gcc-c++
@@ -194,13 +143,14 @@ BuildRequires: libcap-devel
 %if !0%{?rhel}
 BuildRequires: libldm-devel
 %endif
-BuildRequires: jansson-devel
+BuildRequires: json-c-devel
 BuildRequires: systemd-devel
 BuildRequires: bash-completion
 BuildRequires: /usr/bin/ping
-BuildRequires: /usr/bin/wget
+BuildRequires: curl
 BuildRequires: xz
 BuildRequires: zstd
+BuildRequires: libzstd-devel
 BuildRequires: /usr/bin/qemu-img
 
 %if 0%{verify_tarball_signature}
@@ -328,7 +278,6 @@ BuildRequires: util-linux
 BuildRequires: vim-minimal
 BuildRequires: xfsprogs
 BuildRequires: xz
-BuildRequires: yajl
 %if !0%{?rhel}
 BuildRequires: zerofree
 %endif
@@ -351,6 +300,7 @@ Requires:      (%{name}-appliance = %{epoch}:%{version}-%{release} or %{name}-no
 # The daemon dependencies are not included automatically, because it
 # is buried inside the appliance, so list them here.
 Requires:      augeas-libs%{?_isa} >= 1.7.0
+Requires:      json-c%{?_isa}
 Requires:      libacl%{?_isa}
 Requires:      libcap%{?_isa}
 Requires:      libselinux%{?_isa}
@@ -358,7 +308,6 @@ Requires:      hivex-libs%{?_isa} >= 1.3.10
 Requires:      pcre2%{?_isa}
 Requires:      rpm-libs%{?_isa} >= 4.16.1.3
 Requires:      systemd-libs%{?_isa}
-Requires:      yajl%{?_isa}
 
 # For core mount-local (FUSE) API.
 Requires:      fuse
@@ -376,7 +325,6 @@ Requires:      xz
 Requires:      qemu-kvm-core
 %if !0%{?rhel}
 Suggests:      qemu-block-curl
-Suggests:      qemu-block-gluster
 Suggests:      qemu-block-iscsi
 %endif
 Suggests:      qemu-block-rbd
@@ -388,6 +336,7 @@ Requires:      libvirt-daemon-driver-qemu >= 7.1.0
 Requires:      libvirt-daemon-driver-secret
 Requires:      libvirt-daemon-driver-storage-core
 Requires:      selinux-policy >= 3.11.1-63
+Recommends:    passt
 
 %ifarch aarch64
 Requires:      edk2-aarch64
@@ -459,6 +408,7 @@ Language bindings:
 
 %package appliance
 Summary:       Appliance for %{name}
+License:       GPL-2.0-or-later AND LGPL-2.1-or-later
 Requires:      supermin >= 5.1.18
 
 
@@ -480,7 +430,7 @@ for %{name}.
 %if !0%{?rhel}
 %package forensics
 Summary:       Filesystem forensics support for %{name}
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description forensics
@@ -492,7 +442,7 @@ want to forensically analyze disk images using The Sleuth Kit.
 %if !0%{?rhel}
 %package gfs2
 Summary:       GFS2 support for %{name}
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description gfs2
@@ -505,7 +455,7 @@ disk images containing GFS2.
 %ifnarch ppc
 %package hfsplus
 Summary:       HFS+ support for %{name}
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description hfsplus
@@ -517,7 +467,7 @@ disk images containing HFS+ / Mac OS Extended filesystems.
 
 %package rescue
 Summary:       virt-rescue shell
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description rescue
@@ -528,7 +478,7 @@ network utilities, editors and debugging utilities.
 
 %package rsync
 Summary:       rsync support for %{name}
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description rsync
@@ -539,7 +489,7 @@ rsync to upload or download files into disk images.
 %if !0%{?rhel}
 %package ufs
 Summary:       UFS (BSD) support for %{name}
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description ufs
@@ -550,7 +500,7 @@ disk images containing UFS (BSD filesystems).
 
 %package xfs
 Summary:       XFS support for %{name}
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description xfs
@@ -562,7 +512,7 @@ disk images containing XFS.
 %ifnarch %{arm} aarch64 s390 s390x riscv64
 %package zfs
 Summary:       ZFS support for %{name}
-License:       LGPLv2+
+License:       GPL-2.0-or-later
 Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description zfs
@@ -574,7 +524,7 @@ disk images containing ZFS.
 
 %package inspect-icons
 Summary:       Additional dependencies for inspecting guest icons
-License:       LGPLv2+
+License:       LGPL-2.1-or-later
 BuildArch:     noarch
 Requires:      %{name} = %{epoch}:%{version}-%{release}
 
@@ -594,6 +544,7 @@ having to depend on Perl.  See https://bugzilla.redhat.com/1194158
 
 %package bash-completion
 Summary:       Bash tab-completion scripts for %{name} tools
+License:       GPL-2.0-or-later
 BuildArch:     noarch
 Requires:      bash-completion >= 2.0
 
@@ -725,6 +676,7 @@ golang-%{name} contains Go language bindings for %{name}.
 
 %package man-pages-ja
 Summary:       Japanese (ja) man pages for %{name}
+License:       GPL-2.0-or-later
 BuildArch:     noarch
 Requires:      %{name} = %{epoch}:%{version}-%{release}
 
@@ -735,6 +687,7 @@ for %{name}.
 
 %package man-pages-uk
 Summary:       Ukrainian (uk) man pages for %{name}
+License:       GPL-2.0-or-later
 BuildArch:     noarch
 Requires:      %{name} = %{epoch}:%{version}-%{release}
 
@@ -748,14 +701,9 @@ for %{name}.
 %{gpgverify} --keyring='%{SOURCE7}' --signature='%{SOURCE1}' --data='%{SOURCE0}'
 %endif
 %setup -q
-%if 0%{?rhel}
-tar zxf %{SOURCE9}
-%endif
 %autopatch -p1
 
-%if 0%{patches_touch_autotools}
-autoreconf -i
-%endif
+autoreconf -fiv
 
 # For sVirt to work, the local temporary directory we use in the tests
 # must be labelled the same way as /tmp.  This doesn't work if either
@@ -776,7 +724,7 @@ sed 's/@VERSION@/%{version}/g' < %{SOURCE4} > README
 # Test if network is available.
 ip addr list ||:
 ip route list ||:
-if ping -c 3 -w 20 8.8.8.8 && wget http://libguestfs.org -O /dev/null; then
+if ping -c 3 -w 20 8.8.8.8 && curl http://libguestfs.org -o /dev/null; then
   extra=
 else
   mkdir cachedir repo
@@ -812,11 +760,7 @@ fi
 
 # 'INSTALLDIRS' ensures that Perl and Ruby libs are installed in the
 # vendor dir not the site dir.
-#
-# In RHEL 9.5-z, %%{?_smp_mflags} causes a race condition in the
-# build.  I believe this file is generated in parallel:
-# podwrapper.pl: blocksize-option.pod: cannot find input file on path at /builddir/build/BUILD/libguestfs-1.50.2/podwrapper.pl line 672.
-make V=1 INSTALLDIRS=vendor
+%make_build INSTALLDIRS=vendor
 
 
 %check
@@ -842,7 +786,7 @@ fi
 %install
 # 'INSTALLDIRS' ensures that Perl and Ruby libs are installed in the
 # vendor dir not the site dir.
-make DESTDIR=$RPM_BUILD_ROOT INSTALLDIRS=vendor install
+%make_install INSTALLDIRS=vendor
 
 # Delete static libraries.
 rm $( find $RPM_BUILD_ROOT -name '*.a' | grep -v /ocaml/ )
@@ -1157,17 +1101,17 @@ rm ocaml/html/.gitignore
 
 
 %changelog
-* Wed Apr 30 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-4
-- Run the fstrim command twice to workaround RHEL 9.5 kernel trimming bug
-  resolves: RHEL-89045
-
-* Tue Apr 29 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-3
-- Fix virt-v2v conversion of split /usr Ubuntu 22+
-  resolves: RHEL-88803
-
-* Thu Feb 27 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-2
+* Mon Feb 24 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-4
 - Add new APIs to allow command output > 4MB
-  resolves: RHEL-81095
+  resolves: RHEL-80159
+
+* Wed Oct 30 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-3
+- Rebase to libguestfs 1.54.0
+  resolves: RHEL-56809
+- Fix osinfo for Windows Server 2025
+  resolves: RHEL-62935
+- Replace Jansson with json-c
+  resolves: RHEL-65292
 
 * Tue Jul 09 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.50.2-1
 - Update to libguestfs 1.50.2

@@ -1,4 +1,4 @@
-From d8142f0dc4c422b7ea372d1291807bf7492c1662 Mon Sep 17 00:00:00 2001
+From 42ae34115f1e6bff2b501d8ff3ab9ac26c892a22 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 19 Feb 2025 11:11:24 +0000
 Subject: [PATCH] daemon: New command_out and sh_out APIs
@@ -9,7 +9,6 @@ generate more output than the protocol limit allows.
 Thanks: Nijin Ashok
 Fixes: https://issues.redhat.com/browse/RHEL-80159
 (cherry picked from commit 47ac4871b2c1dcde317d116c52b13916ab368ea4)
-(cherry picked from commit 42ae34115f1e6bff2b501d8ff3ab9ac26c892a22)
 ---
  .gitignore                                |  1 +
  daemon/sh.c                               | 42 +++++++++++++
@@ -24,10 +23,10 @@ Fixes: https://issues.redhat.com/browse/RHEL-80159
  create mode 100755 tests/large-command/test-large-command.sh
 
 diff --git a/.gitignore b/.gitignore
-index 00e59fb3..73a561c2 100644
+index 2fc52e84..68b27c79 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -422,6 +422,7 @@ Makefile.in
+@@ -423,6 +423,7 @@ Makefile.in
  /tests/disks/test-add-disks
  /tests/disks/test-qemu-drive-libvirt.xml
  /tests/events/test-libvirt-auth-callbacks
@@ -36,10 +35,10 @@ index 00e59fb3..73a561c2 100644
  /tests/mountable/test-internal-parse-mountable
  /tests/parallel/test-parallel
 diff --git a/daemon/sh.c b/daemon/sh.c
-index 92ce08be..c8fdf0bf 100644
+index 21d4deea..f8440c1d 100644
 --- a/daemon/sh.c
 +++ b/daemon/sh.c
-@@ -299,6 +299,40 @@ do_command_lines (char *const *argv)
+@@ -294,6 +294,40 @@ do_command_lines (char *const *argv)
    return lines;			/* Caller frees. */
  }
  
@@ -80,7 +79,7 @@ index 92ce08be..c8fdf0bf 100644
  char *
  do_sh (const char *cmd)
  {
-@@ -314,3 +348,11 @@ do_sh_lines (const char *cmd)
+@@ -309,3 +343,11 @@ do_sh_lines (const char *cmd)
  
    return do_command_lines ((char **) argv);
  }
@@ -93,7 +92,7 @@ index 92ce08be..c8fdf0bf 100644
 +  return do_command_out ((char **) argv);
 +}
 diff --git a/generator/actions_core.ml b/generator/actions_core.ml
-index c3afe810..60c4b577 100644
+index 768f5843..eb047b6b 100644
 --- a/generator/actions_core.ml
 +++ b/generator/actions_core.ml
 @@ -2352,6 +2352,19 @@ result into a list of lines.
@@ -116,7 +115,7 @@ index c3afe810..60c4b577 100644
    { defaults with
      name = "statvfs"; added = (1, 9, 2);
      style = RStruct ("statbuf", "statvfs"), [String (Pathname, "path")], [];
-@@ -3454,6 +3467,18 @@ into a list of lines.
+@@ -3461,6 +3474,18 @@ into a list of lines.
  
  See also: C<guestfs_command_lines>" };
  
@@ -156,7 +155,7 @@ index 3cda32fc..ac953cd0 100644
 -515
 +517
 diff --git a/tests/Makefile.am b/tests/Makefile.am
-index b87d4ce2..9ad3cd1d 100644
+index 52155f64..f23fb6e9 100644
 --- a/tests/Makefile.am
 +++ b/tests/Makefile.am
 @@ -440,6 +440,16 @@ EXTRA_DIST += http/test-http.py
