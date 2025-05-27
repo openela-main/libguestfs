@@ -1,0 +1,29 @@
+From 9a5892b8df996d764b332565a436621a91f5d8f3 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 11 Mar 2025 13:36:12 +0000
+Subject: [PATCH] daemon: Fix loongarch64 detection on RHEL 9
+
+$ rpm -q file
+file-5.39-16.el9.x86_64
+$ file ./test-data/binaries/bin-loongarch64-dynamic
+./test-data/binaries/bin-loongarch64-dynamic: ELF 64-bit LSB pie executable, *unknown arch 0x102* version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-loongarch-lp64d.so.1, BuildID[sha1]=7622a1a70bf6e697851ac3790557e1ca686459b5, for GNU/Linux 5.19.0, stripped
+
+Updates: commit 729d6d55ea84494f0398d02450bd29c39c55f0bd
+(cherry picked from commit 4176b2043f6cf65f8f5f4f7d6fa39beb9c0a22c6)
+---
+ daemon/filearch.ml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/daemon/filearch.ml b/daemon/filearch.ml
+index 7dfc1cb7..e2bd5a2c 100644
+--- a/daemon/filearch.ml
++++ b/daemon/filearch.ml
+@@ -100,6 +100,8 @@ and canonical_elf_arch bits endianness elf_arch =
+   )
+   else if substr "LoongArch" then
+     sprintf "loongarch%s" bits
++  else if substr "*unknown arch 0x102*" then (* file command on RHEL 9 *)
++    sprintf "loongarch%s" bits
+   else
+     elf_arch
+ 

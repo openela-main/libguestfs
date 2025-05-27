@@ -1,0 +1,45 @@
+From 19c4d1c8b9f278e054594660b5392d6c08a59d8f Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Mon, 10 Mar 2025 18:52:08 +0000
+Subject: [PATCH] lib: Print kernel utsname in debug output
+
+Useful for debugging problems caused by the host kernel.  In
+particular we were looking at a problem with passt creating a user
+namespace but didn't know what exact kernel was being used.
+
+(cherry picked from commit 31fa712aa07190f2c5ed789712b92b4be2d51488)
+---
+ lib/launch.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/lib/launch.c b/lib/launch.c
+index b9b76e50..9c44612d 100644
+--- a/lib/launch.c
++++ b/lib/launch.c
+@@ -36,6 +36,7 @@
+ #include <signal.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
++#include <sys/utsname.h>
+ #include <sys/wait.h>
+ #include <errno.h>
+ #include <assert.h>
+@@ -93,6 +94,7 @@ guestfs_impl_launch (guestfs_h *g)
+     struct backend *b;
+     CLEANUP_FREE char *backend = guestfs_get_backend (g);
+     int mask;
++    struct utsname utsname;
+ 
+     debug (g, "launch: program=%s", g->program);
+     if (STRNEQ (g->identifier, ""))
+@@ -109,6 +111,10 @@ guestfs_impl_launch (guestfs_h *g)
+     if (mask >= 0)
+       debug (g, "launch: umask=0%03o", (unsigned) mask);
+     debug (g, "launch: euid=%ju", (uintmax_t) geteuid ());
++    if (uname (&utsname) == 0)
++      debug (g, "launch: host: %s %s %s %s %s",
++             utsname.sysname, utsname.nodename, utsname.release,
++             utsname.version, utsname.machine);
+   }
+ 
+   /* Launch the appliance. */

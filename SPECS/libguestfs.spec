@@ -37,7 +37,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.54.0
-Release:       4%{?dist}
+Release:       8%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -92,6 +92,19 @@ Patch0014:     0014-website-Fix-link-to-latest-development-version.patch
 Patch0015:     0015-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
 Patch0016:     0016-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
 Patch0017:     0017-daemon-New-command_out-and-sh_out-APIs.patch
+Patch0018:     0018-lib-Print-kernel-utsname-in-debug-output.patch
+Patch0019:     0019-daemon-Fix-loongarch64-detection-on-RHEL-9.patch
+Patch0020:     0020-daemon-inspect-Add-some-debugging-of-usr-merging.patch
+Patch0021:     0021-generator-Implement-struct-FDevice-type.patch
+Patch0022:     0022-generator-Use-new-FDevice-type-for-the-pvs-full-pv_n.patch
+Patch0023:     0023-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-uuid-in.patch
+Patch0024:     0024-generator-Fix-implementation-of-FUUID-for-OCaml-func.patch
+Patch0025:     0025-Update-common-submodule.patch
+Patch0026:     0026-daemon-Rewrite-pvs-vgs-lvs-full-APIs-in-OCaml.patch
+Patch0027:     0027-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-id-dm-u.patch
+Patch0028:     0028-daemon-fstrim.c-Issue-sync_disks-after-fstrim.patch
+Patch0029:     0029-daemon-fstrim.c-Run-the-fstrim-command-twice.patch
+Patch0030:     0030-daemon-inspect-Remove-duplicate-root-mountpoints-in-.patch
 
 BuildRequires: autoconf, automake, libtool, gettext-devel
 
@@ -1101,6 +1114,22 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Tue May 20 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-8
+- daemon: inspect: Remove duplicate root mountpoints in /etc/fstab
+  resolves: RHEL-92597
+
+* Wed Apr 30 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-7
+- Run the fstrim command twice to workaround RHEL 9.5 kernel trimming bug
+  resolves: RHEL-89046
+
+* Tue Apr 29 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-6
+- Fix virt-v2v conversion of split /usr Ubuntu 22+
+  resolves: RHEL-88804
+
+* Tue Mar 11 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-5
+- Include host kernel information in libguestfs debugging output
+  resolves: RHEL-83032
+
 * Mon Feb 24 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-4
 - Add new APIs to allow command output > 4MB
   resolves: RHEL-80159

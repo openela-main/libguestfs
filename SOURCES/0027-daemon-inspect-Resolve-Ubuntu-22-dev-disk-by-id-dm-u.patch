@@ -1,0 +1,71 @@
+From 1b3d8b2f1f118b0c2842a8e58ee6ad45ac9ebdd5 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 16 Apr 2025 10:27:25 +0100
+Subject: [PATCH] daemon: inspect: Resolve Ubuntu 22+
+ /dev/disk/by-id/dm-uuid-LVM-... in fstab
+
+Linux + LVM supports device names like /dev/disk/by-id/dm-uuid-LVM-
+followed by two concatenated UUIDs, firstly for the volume group and
+secondly for the logical volume.  We can reverse those to get the
+device name (/dev/VG/LV).
+
+fstab entries look like:
+
+  # / was on /dev/vg0/lv-0 during curtin installation
+  /dev/disk/by-id/dm-uuid-LVM-OzFWT6NHkstr1hcmrWRRMDGPn9xdZj1YOOycQ533186x288FdU6UubU3OlnWJz6D / ext4 defaults 0 1
+  # /usr was on /dev/vg0/lv-1 during curtin installation
+  /dev/disk/by-id/dm-uuid-LVM-OzFWT6NHkstr1hcmrWRRMDGPn9xdZj1YZu53m4ZssZ8Jeb3I14RAJwIj5YlHIb9P /usr ext4 defaults 0 1
+
+The upshot of this fix is that we are now able to correctly inspect
+and run virt-v2v on Ubuntu 22+ guests with split /usr.  In particular,
+we correctly map /etc/fstab entries like the above to LV device names,
+which means that /usr merging now works correctly.
+
+Reported-by: Jaroslav Spanko
+Thanks: Daniel Berrange
+Fixes: https://issues.redhat.com/browse/RHEL-87493
+(cherry picked from commit e43ca1912973b3ddfa73b09a4690aa8bb26e08af)
+(cherry picked from commit 180293338e0d127d0545fe03b6141ed04e22e441)
+---
+ daemon/inspect_fs_unix_fstab.ml | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/daemon/inspect_fs_unix_fstab.ml b/daemon/inspect_fs_unix_fstab.ml
+index 45c62175..dcbdab3c 100644
+--- a/daemon/inspect_fs_unix_fstab.ml
++++ b/daemon/inspect_fs_unix_fstab.ml
+@@ -27,6 +27,7 @@ open Inspect_utils
+ 
+ let re_cciss = PCRE.compile "^/dev/(cciss/c\\d+d\\d+)(?:p(\\d+))?$"
+ let re_diskbyid = PCRE.compile "^/dev/disk/by-id/.*-part(\\d+)$"
++let re_dmuuid = PCRE.compile "^/dev/disk/by-id/dm-uuid-LVM-([0-9a-zA-Z]{32})([0-9a-zA-Z]{32})$"
+ let re_freebsd_gpt = PCRE.compile "^/dev/(ada{0,1}|vtbd)(\\d+)p(\\d+)$"
+ let re_freebsd_mbr = PCRE.compile "^/dev/(ada{0,1}|vtbd)(\\d+)s(\\d+)([a-z])$"
+ let re_hurd_dev = PCRE.compile "^/dev/(h)d(\\d+)s(\\d+)$"
+@@ -407,6 +408,26 @@ and resolve_fstab_device spec md_map os_type =
+       Failure _ -> default
+   )
+ 
++  (* Ubuntu 22+ uses /dev/disk/by-id/dm-uuid-LVM-... followed by a
++   * double UUID which identifies an LV.  The first part of the UUID
++   * is the VG UUID.  The second part is the LV UUID.
++   *)
++  else if PCRE.matches re_dmuuid spec then (
++    debug_matching "dmuuid";
++    let vg_uuid_spec = PCRE.sub 1 and lv_uuid_spec = PCRE.sub 2 in
++    try
++      (* Get the list of all VGs and LVs. *)
++      let vgs = Lvm_full.vgs_full () and lvs = Lvm_full.lvs_full () in
++      (* Find one VG & LV (hopefully) that matches the UUIDs. *)
++      let vg =
++        List.find (fun { Structs.vg_uuid } -> vg_uuid = vg_uuid_spec) vgs
++      and lv =
++        List.find (fun { Structs.lv_uuid } -> lv_uuid = lv_uuid_spec) lvs in
++      Mountable.of_device (sprintf "/dev/%s/%s" vg.vg_name lv.lv_name)
++    with
++      Failure _ | Not_found -> default
++  )
++
+   else if PCRE.matches re_freebsd_gpt spec then (
+     debug_matching "FreeBSD GPT";
+     (* group 1 (type) is not used *)

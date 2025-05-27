@@ -1,0 +1,127 @@
+From d9f4ab8dc6c474e9dcf4bc636b07a2705a18a0a7 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 8 May 2025 09:10:38 +0100
+Subject: [PATCH] daemon: inspect: Remove duplicate root mountpoints in
+ /etc/fstab
+
+A customer case was found where /etc/fstab contained multiple root
+mountpoints, something like:
+
+  LABEL=System / xfs ...
+  LABEL=Boot /boot ext2 ...
+  LABEL=System / xfs ...
+
+This causes libguestfs and virt-v2v to fail.  Either (on RHEL 9) we
+try to mount the second instance of / which gives an error.  Or (on
+upstream kernels) we are able to mount the second instance but then
+libguestfs gets confused when trying to unmount them.
+
+In this case as the mounted devices are the same we can just delete
+the duplicate.  It's also possible that there could be multiple
+non-identical root mountpoints, in which case we have to pick one, and
+this code arbitrarily picks the first[*] (but emits a warning).
+
+We don't do anything for non-root mountpoints.
+
+Update common submodule to add 'List.same' function from mlstdutils.
+
+[*] Which one is "the first" depends on what version of ocaml-augeas
+we are using.  ocaml-augeas version 0.6 Augeas.matches function
+returns entries in reverse order (compared to augeas itself).  This is
+fixed in version 0.7:
+http://git.annexia.org/?p=ocaml-augeas.git;a=commitdiff;h=b703b92e3d26690aa6f7b822132049ce5435983e
+
+Fixes: https://issues.redhat.com/browse/RHEL-90168
+(cherry picked from commit 5441d3dd0c8843897f65c8d40c82e0d204748b4e)
+---
+ common                          |  2 +-
+ daemon/inspect_fs_unix_fstab.ml | 31 +++++++++++++++++++++++++++++--
+ 2 files changed, 30 insertions(+), 3 deletions(-)
+
+Submodule common 8aed7b6a..9053edae:
+diff --git a/common/mlstdutils/std_utils.ml b/common/mlstdutils/std_utils.ml
+index 1177ff69..a0745d38 100644
+--- a/common/mlstdutils/std_utils.ml
++++ b/common/mlstdutils/std_utils.ml
+@@ -396,6 +396,18 @@ module List = struct
+ 
+     let push_back_list xsp xs = xsp := !xsp @ xs
+     let push_front_list xs xsp = xsp := xs @ !xsp
++
++    let make n x =
++      let rec loop acc = function
++        | 0 -> acc
++        | i when i > 0 -> loop (x :: acc) (i-1)
++        | _ -> invalid_arg "make"
++      in
++      loop [] n
++
++    let same = function
++      | [] -> true
++      | x :: xs -> List.for_all ((=) x) xs
+ end
+ 
+ module Option = struct
+diff --git a/common/mlstdutils/std_utils.mli b/common/mlstdutils/std_utils.mli
+index 6811b4bc..f5ff3470 100644
+--- a/common/mlstdutils/std_utils.mli
++++ b/common/mlstdutils/std_utils.mli
+@@ -289,6 +289,12 @@ module List : sig
+ 
+         [push_front_list] is like {!push_front} above, except it prepends
+         a list to the list reference. *)
++
++    val make : int -> 'a -> 'a list
++    (** [make n x] returns a list with [x] repeated [n] times. *)
++    val same : 'a list -> bool
++    (** [same xs] returns true iff the list contains only identical elements,
++        or is the empty list. *)
+ end
+ (** Override the List module from stdlib. *)
+ 
+diff --git a/daemon/inspect_fs_unix_fstab.ml b/daemon/inspect_fs_unix_fstab.ml
+index dcbdab3c..b0de55e4 100644
+--- a/daemon/inspect_fs_unix_fstab.ml
++++ b/daemon/inspect_fs_unix_fstab.ml
+@@ -53,8 +53,10 @@ and check_fstab_aug mdadm_conf root_mountable os_type aug =
+   let md_map = if mdadm_conf then map_md_devices aug else StringMap.empty in
+ 
+   let path = "/files/etc/fstab/*[label() != '#comment']" in
+-  let entries = aug_matches_noerrors aug path in
+-  List.filter_map (check_fstab_entry md_map root_mountable os_type aug) entries
++  path |>
++    aug_matches_noerrors aug |>
++    List.filter_map (check_fstab_entry md_map root_mountable os_type aug) |>
++    remove_duplicate_root_mountpoints
+ 
+ and check_fstab_entry md_map root_mountable os_type aug entry =
+   with_return (fun {return} ->
+@@ -604,3 +606,28 @@ and resolve_diskbyid part default =
+     if is_partition dev then Mountable.of_device dev
+     else default
+   )
++
++(* Remove duplicate root mountpoints if they are identical.  If
++ * there are multiple non-identical roots we pick the first and
++ * emit a warning (RHEL-90168).
++ *)
++and remove_duplicate_root_mountpoints (entries : fstab_entry list) =
++  let root_entries, non_root_entries =
++    List.partition (function (_, "/") -> true | _ -> false) entries in
++  (* If there is one root entry (the normal case) return the list unmodified. *)
++  if List.length root_entries <= 1 then entries
++  else (
++    (* If they are not the same, issue a warning. *)
++    if not (List.same root_entries) then
++      eprintf "check_fstab: multiple, non-identical root mountpoints found \
++               in the /etc/fstab of this guest, picking the first.  The \
++               root entries were: [%s]\n"
++        (String.concat "; "
++           (List.map (fun (mountable, mp) ->
++                sprintf "%s -> %s" (Mountable.to_string mountable) mp)
++              root_entries)
++        );
++
++    (* Choose the first root entry and return it. *)
++    List.hd root_entries :: non_root_entries
++  )
