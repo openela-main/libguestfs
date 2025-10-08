@@ -1,0 +1,68 @@
+From 9255abee029e35dd5c6783b8b6037eb71104650c Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 22 Oct 2024 15:22:18 +0100
+Subject: [PATCH] build: Remove Jansson dependency
+
+After previous changes, this library is no longer used.  We have
+switched to json-c, for better compatibility with libvirt.
+
+(cherry picked from
+guestfs-tools commit e6dcf7e3a7e9170978e57ce6df1b34f92fac5ae3)
+---
+ docs/guestfs-building.pod | 4 ----
+ lib/Makefile.am           | 2 --
+ m4/guestfs-libraries.m4   | 3 ---
+ 3 files changed, 9 deletions(-)
+
+diff --git a/docs/guestfs-building.pod b/docs/guestfs-building.pod
+index de175aaff..aef716ffc 100644
+--- a/docs/guestfs-building.pod
++++ b/docs/guestfs-building.pod
+@@ -185,10 +185,6 @@ I<Required>.
+ 
+ I<Required>.
+ 
+-=item Jansson E<ge> 2.7
+-
+-I<Required>.
+-
+ =item json-c E<ge> 0.14
+ 
+ I<Required>.
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index 60567b04b..6949884d5 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -138,7 +138,6 @@ libguestfs_la_CFLAGS = \
+ 	$(PCRE2_CFLAGS) \
+ 	$(LIBVIRT_CFLAGS) \
+ 	$(LIBXML2_CFLAGS) \
+-	$(JANSSON_CFLAGS) \
+ 	$(JSON_C_CFLAGS)
+ 
+ libguestfs_la_LIBADD = \
+@@ -150,7 +149,6 @@ libguestfs_la_LIBADD = \
+ 	$(PCRE2_LIBS) \
+ 	$(LIBVIRT_LIBS) $(LIBXML2_LIBS) \
+ 	$(SELINUX_LIBS) \
+-	$(JANSSON_LIBS) \
+ 	$(JSON_C_LIBS) \
+ 	../gnulib/lib/libgnu.la \
+ 	$(LIBSOCKET) \
+diff --git a/m4/guestfs-libraries.m4 b/m4/guestfs-libraries.m4
+index ee406d273..515651717 100644
+--- a/m4/guestfs-libraries.m4
++++ b/m4/guestfs-libraries.m4
+@@ -301,9 +301,6 @@ LIBS="$LIBS $LIBXML2_LIBS"
+ AC_CHECK_FUNCS([xmlBufferDetach])
+ LIBS="$old_LIBS"
+ 
+-dnl Check for Jansson JSON library (required).
+-PKG_CHECK_MODULES([JANSSON], [jansson >= 2.7])
+-
+ dnl Check for JSON-C library (required).
+ PKG_CHECK_MODULES([JSON_C], [json-c >= 0.14])
+ 
+-- 
+2.43.0
+

@@ -1,0 +1,132 @@
+From 47857751a78108617e1e25d4949564bc2a182381 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 22 Oct 2024 16:23:07 +0100
+Subject: [PATCH] lib: direct: Remove test for qemu mandatory locking
+
+We tested for QEMU >= 2.10 support for mandatory locking.  I believe
+this is for all practical purposes always enabled now (and qemu 2.10
+is ancient history) so simply assume it's true always.
+---
+ lib/guestfs-internal.h |  1 -
+ lib/launch-direct.c    | 19 ++++++-----------
+ lib/qemu.c             | 48 ------------------------------------------
+ 3 files changed, 7 insertions(+), 61 deletions(-)
+
+diff --git a/lib/guestfs-internal.h b/lib/guestfs-internal.h
+index f9f4628aa..bb3772cb5 100644
+--- a/lib/guestfs-internal.h
++++ b/lib/guestfs-internal.h
+@@ -796,7 +796,6 @@ extern struct qemu_data *guestfs_int_test_qemu (guestfs_h *g);
+ extern struct version guestfs_int_qemu_version (guestfs_h *g, struct qemu_data *);
+ extern int guestfs_int_qemu_supports (guestfs_h *g, const struct qemu_data *, const char *option);
+ extern int guestfs_int_qemu_supports_device (guestfs_h *g, const struct qemu_data *, const char *device_name);
+-extern int guestfs_int_qemu_mandatory_locking (guestfs_h *g, const struct qemu_data *data);
+ extern bool guestfs_int_platform_has_kvm (guestfs_h *g, const struct qemu_data *data);
+ extern char *guestfs_int_drive_source_qemu_param (guestfs_h *g, const struct drive_source *src);
+ extern bool guestfs_int_discard_possible (guestfs_h *g, struct drive *drv, const struct version *qemu_version);
+diff --git a/lib/launch-direct.c b/lib/launch-direct.c
+index cdfd25a9a..9d0c2215b 100644
+--- a/lib/launch-direct.c
++++ b/lib/launch-direct.c
+@@ -57,7 +57,6 @@ struct backend_direct_data {
+   pid_t recoverypid;            /* Recovery process PID. */
+ 
+   struct version qemu_version;  /* qemu version (0 if unable to parse). */
+-  int qemu_mandatory_locking;   /* qemu >= 2.10 does mandatory locking */
+   struct qemu_data *qemu_data;  /* qemu -help output etc. */
+ 
+   char guestfsd_sock[UNIX_PATH_MAX]; /* Path to daemon socket. */
+@@ -240,13 +239,13 @@ add_drive_standard_params (guestfs_h *g, struct backend_direct_data *data,
+     }
+   }
+   else {
+-    /* Writable qcow2 overlay on top of read-only drive. */
+-    if (data->qemu_mandatory_locking &&
+-	/* Add the file-specific locking option only for files, as
+-	 * qemu won't accept options unknown to the block driver in
+-	 * use.
+-	 */
+-	drv->src.protocol == drive_protocol_file) {
++    /* Writable qcow2 overlay on top of read-only drive.
++     *
++     * Add the file-specific locking option only for files, as
++     * qemu won't accept options unknown to the block driver in
++     * use.
++     */
++    if (drv->src.protocol == drive_protocol_file) {
+       append_list_format ("file.file.filename=%s", drv->overlay);
+       append_list ("file.driver=qcow2");
+       append_list ("file.backing.file.locking=off");
+@@ -495,10 +494,6 @@ launch_direct (guestfs_h *g, void *datav, const char *arg)
+     data->qemu_version = guestfs_int_qemu_version (g, data->qemu_data);
+     debug (g, "qemu version: %d.%d",
+            data->qemu_version.v_major, data->qemu_version.v_minor);
+-    data->qemu_mandatory_locking =
+-      guestfs_int_qemu_mandatory_locking (g, data->qemu_data);
+-    debug (g, "qemu mandatory locking: %s",
+-           data->qemu_mandatory_locking ? "yes" : "no");
+   }
+ 
+   /* Work out if KVM is supported or if the user wants to force TCG. */
+diff --git a/lib/qemu.c b/lib/qemu.c
+index 886c92e5d..f92707710 100644
+--- a/lib/qemu.c
++++ b/lib/qemu.c
+@@ -662,54 +662,6 @@ guestfs_int_qemu_supports_device (guestfs_h *g,
+   return strstr (data->qemu_devices, device_name) != NULL;
+ }
+ 
+-/**
+- * Test if the qemu binary uses mandatory file locking, added in
+- * QEMU >= 2.10 (but sometimes disabled).
+- */
+-int
+-guestfs_int_qemu_mandatory_locking (guestfs_h *g,
+-                                    const struct qemu_data *data)
+-{
+-  json_t *schema, *v, *meta_type, *members, *m, *name;
+-  size_t i, j;
+-
+-  /* If there's no QMP schema, fall back to checking the version. */
+-  if (!data->qmp_schema_tree) {
+-  fallback:
+-    return guestfs_int_version_ge (&data->qemu_version, 2, 10, 0);
+-  }
+-
+-  /* Top element of qmp_schema_tree is the { "return": ... } wrapper.
+-   * Extract the schema from the wrapper.  Note the returned ‘schema’
+-   * will be an array.
+-   */
+-  schema = json_object_get (data->qmp_schema_tree, "return");
+-  if (!json_is_array (schema))
+-    goto fallback;
+-
+-  /* Now look for any member of the array which has:
+-   * { "meta-type": "object",
+-   *   "members": [ ... { "name": "locking", ... } ... ] ... }
+-   */
+-  json_array_foreach (schema, i, v) {
+-    meta_type = json_object_get (v, "meta-type");
+-    if (json_is_string (meta_type) &&
+-        STREQ (json_string_value (meta_type), "object")) {
+-      members = json_object_get (v, "members");
+-      if (json_is_array (members)) {
+-        json_array_foreach (members, j, m) {
+-          name = json_object_get (m, "name");
+-          if (json_is_string (name) &&
+-              STREQ (json_string_value (name), "locking"))
+-            return 1;
+-        }
+-      }
+-    }
+-  }
+-
+-  return 0;
+-}
+-
+ bool
+ guestfs_int_platform_has_kvm (guestfs_h *g, const struct qemu_data *data)
+ {
+-- 
+2.43.0
+

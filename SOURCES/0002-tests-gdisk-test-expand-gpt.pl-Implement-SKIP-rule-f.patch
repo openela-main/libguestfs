@@ -1,0 +1,31 @@
+From c25ff1a8022cf345d3ce29682207ed3732a4244a Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Mon, 14 Oct 2024 10:43:08 +0100
+Subject: [PATCH] tests/gdisk/test-expand-gpt.pl: Implement SKIP rule for this
+ test
+
+Reported-by: David Runge
+Related: https://github.com/libguestfs/libguestfs/issues/155
+---
+ tests/gdisk/test-expand-gpt.pl | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/tests/gdisk/test-expand-gpt.pl b/tests/gdisk/test-expand-gpt.pl
+index 23a52b23c..5c77247c0 100755
+--- a/tests/gdisk/test-expand-gpt.pl
++++ b/tests/gdisk/test-expand-gpt.pl
+@@ -20,6 +20,11 @@ use warnings;
+ 
+ use Sys::Guestfs;
+ 
++if ($ENV{SKIP_TEST_EXPAND_GPT_PL}) {
++    print "$0: test skipped because SKIP_TEST_EXPAND_GPT_PL is set\n";
++    exit 77;
++}
++
+ sub tests {
+ 	my $g = Sys::Guestfs->new ();
+ 
+-- 
+2.43.0
+
