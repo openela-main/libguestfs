@@ -1,0 +1,29 @@
+From 0a91731356a5bb0ab8eee620fc1fed1656b117f9 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 25 Jul 2025 09:36:35 +0100
+Subject: [PATCH] lib: libvirt: Debug error from virDomainDestroyFlags
+
+It's useful to see the error returned from virDomainDestroyFlags, so
+make sure this gets written to debug output.
+---
+ lib/launch-libvirt.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/lib/launch-libvirt.c b/lib/launch-libvirt.c
+index 55a4ad41c..8dbde5341 100644
+--- a/lib/launch-libvirt.c
++++ b/lib/launch-libvirt.c
+@@ -2173,6 +2173,10 @@ destroy_domain (guestfs_h *g, virDomainPtr dom, int check_for_errors)
+ 
+   /* Error returned by virDomainDestroyFlags ... */
+   err = virGetLastError ();
++  if (err && err->code != 0) {
++    debug (g, "virDomainDestroy: %s [code=%d int1=%d]",
++           err->message, err->code, err->int1);
++  }
+ 
+   /* Retry (indefinitely) if we're just waiting for qemu to shut down.  See:
+    * https://www.redhat.com/archives/libvir-list/2016-January/msg00767.html
+-- 
+2.47.1
+

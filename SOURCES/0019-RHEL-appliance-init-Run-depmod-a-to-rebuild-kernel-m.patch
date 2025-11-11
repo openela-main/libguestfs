@@ -1,0 +1,27 @@
+From 7a16a0b3580b081abc4880644ed0e34b30670cae Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 13 May 2025 17:28:25 +0100
+Subject: [PATCH] RHEL: appliance/init: Run depmod -a to rebuild kernel module
+ dependencies
+
+---
+ appliance/init | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/appliance/init b/appliance/init
+index 62526ac77..c94f50079 100755
+--- a/appliance/init
++++ b/appliance/init
+@@ -116,6 +116,9 @@ $UDEVD --daemon #--debug
+ udevadm trigger
+ udevadm settle --timeout=600
+ 
++# Recreate module dependencies (RHEL only)
++depmod -a
++
+ # Disk optimizations.
+ # Increase the SCSI timeout so we can read remote images.
+ shopt -s nullglob
+-- 
+2.47.1
+

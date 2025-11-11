@@ -1,0 +1,49 @@
+From f4f84a882468cb7b2dc4c265bdc18a5df79c3d4d Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 30 Jul 2025 10:53:20 +0100
+Subject: [PATCH] daemon: Add contents of /etc/fstab to verbose log
+
+Also some mdadm configuration files.  This is useful for debugging.
+
+The output looks like this:
+
+  info: /etc/fstab in /dev/VG/Root
+  LABEL=BOOT /boot ext2 default 0 0$
+  LABEL=ROOT / ext2 default 0 0$
+
+Fixes: https://issues.redhat.com/browse/RHEL-106490
+---
+ daemon/inspect_fs_unix_fstab.ml | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/daemon/inspect_fs_unix_fstab.ml b/daemon/inspect_fs_unix_fstab.ml
+index 8e765454a..b4652a39d 100644
+--- a/daemon/inspect_fs_unix_fstab.ml
++++ b/daemon/inspect_fs_unix_fstab.ml
+@@ -43,6 +43,23 @@ let rec check_fstab ?(mdadm_conf = false) (root_mountable : Mountable.t)
+     if mdadm_conf then ["/etc/mdadm.conf"; "/etc/mdadm/mdadm.conf"] else [] in
+   let configfiles = "/etc/fstab" :: mdadmfiles in
+ 
++  (* If verbose, dump the contents of each config file as that can be
++   * useful for debugging.
++   *)
++  if verbose () then (
++    List.iter (
++      fun filename ->
++        let sysroot_filename = Sysroot.sysroot_path filename in
++        if Sys.file_exists sysroot_filename then (
++          eprintf "info: %s in %s\n%!"
++            filename (Mountable.to_string root_mountable);
++          let cmd = sprintf "cat -A %s >&2" (quote sysroot_filename) in
++          ignore (Sys.command cmd);
++          eprintf "\n%!"
++        )
++    ) configfiles
++  );
++
+   with_augeas ~name:"check_fstab_aug"
+               configfiles (check_fstab_aug mdadm_conf root_mountable os_type)
+ 
+-- 
+2.47.1
+

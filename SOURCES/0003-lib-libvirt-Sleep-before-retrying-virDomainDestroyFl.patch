@@ -1,0 +1,32 @@
+From c7aaa89fba21499fa6ba11e41fdc8de610819a87 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 25 Jul 2025 09:39:51 +0100
+Subject: [PATCH] lib: libvirt: Sleep before retrying virDomainDestroyFlags
+
+This saves us going into a loop if virDomainDestroyFlags keeps
+returning -EBUSY quickly, which apparenrly can happen in containers.
+
+The equivalent 'direct' backend code sleeps for 2 seconds in this case.
+---
+ lib/launch-libvirt.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/lib/launch-libvirt.c b/lib/launch-libvirt.c
+index 8dbde5341..c690a444a 100644
+--- a/lib/launch-libvirt.c
++++ b/lib/launch-libvirt.c
+@@ -2181,8 +2181,10 @@ destroy_domain (guestfs_h *g, virDomainPtr dom, int check_for_errors)
+   /* Retry (indefinitely) if we're just waiting for qemu to shut down.  See:
+    * https://www.redhat.com/archives/libvir-list/2016-January/msg00767.html
+    */
+-  if (err && err->code == VIR_ERR_SYSTEM_ERROR && err->int1 == EBUSY)
++  if (err && err->code == VIR_ERR_SYSTEM_ERROR && err->int1 == EBUSY) {
++    sleep (1);
+     goto again;
++  }
+ 
+   /* "Domain not found" is not treated as an error. */
+   if (err && err->code == VIR_ERR_NO_DOMAIN)
+-- 
+2.47.1
+

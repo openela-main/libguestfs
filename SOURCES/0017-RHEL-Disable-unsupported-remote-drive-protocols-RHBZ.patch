@@ -1,4 +1,4 @@
-From c508b3390245bbecfa8acf785b7d7bfd215859ae Mon Sep 17 00:00:00 2001
+From d1808ea5eb7ad9c38f5f8c5e90d086886300acd8 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Mon, 29 Jul 2013 14:47:56 +0100
 Subject: [PATCH] RHEL: Disable unsupported remote drive protocols
@@ -26,7 +26,7 @@ Note 'nbd' is not disabled, and of course 'file' works.
  8 files changed, 8 insertions(+), 336 deletions(-)
 
 diff --git a/docs/guestfs-testing.pod b/docs/guestfs-testing.pod
-index f5c09df6e..ee4b26d6b 100644
+index 45ebe2941..a02f766c9 100644
 --- a/docs/guestfs-testing.pod
 +++ b/docs/guestfs-testing.pod
 @@ -109,26 +109,6 @@ image.  To exit, type C<exit>.
@@ -57,7 +57,7 @@ index f5c09df6e..ee4b26d6b 100644
  
  Run L<virt-alignment-scan(1)> on guests or disk images:
 diff --git a/fish/guestfish.pod b/fish/guestfish.pod
-index da47c86d6..33fc8b2c8 100644
+index ac14ea5a4..8d4d488fc 100644
 --- a/fish/guestfish.pod
 +++ b/fish/guestfish.pod
 @@ -131,9 +131,9 @@ To list what is available do:
@@ -142,7 +142,7 @@ index da47c86d6..33fc8b2c8 100644
  In this case, the password is C<pass@word>.
  
 diff --git a/fish/test-add-uri.sh b/fish/test-add-uri.sh
-index 533a3ce0c..ddabeb639 100755
+index e4e1021db..8419ce78a 100755
 --- a/fish/test-add-uri.sh
 +++ b/fish/test-add-uri.sh
 @@ -40,10 +40,6 @@ function fail ()
@@ -180,7 +180,7 @@ index 533a3ce0c..ddabeb639 100755
  rm test-add-uri.out
  rm test-add-uri.img
 diff --git a/generator/actions_core.ml b/generator/actions_core.ml
-index 20f6e8436..768f58433 100644
+index 60d3140ed..d374ffbf8 100644
 --- a/generator/actions_core.ml
 +++ b/generator/actions_core.ml
 @@ -350,22 +350,6 @@ F<filename> is interpreted as a local file or device.
@@ -394,7 +394,7 @@ index c068b8ecb..6e4453ce5 100644
      error (g, _("unknown protocol ‘%s’"), protocol);
      drv = NULL; /*FALLTHROUGH*/
 diff --git a/lib/guestfs.pod b/lib/guestfs.pod
-index ecab0e1f3..dff32cc9e 100644
+index 505978aa1..07737c839 100644
 --- a/lib/guestfs.pod
 +++ b/lib/guestfs.pod
 @@ -723,51 +723,6 @@ a qcow2 backing file specification, libvirt does not construct an
@@ -479,7 +479,7 @@ index ecab0e1f3..dff32cc9e 100644
  
  Libguestfs has APIs for inspecting an unknown disk image to find out
 diff --git a/tests/disks/test-qemu-drive-libvirt.sh b/tests/disks/test-qemu-drive-libvirt.sh
-index afbeddec6..93df4be0a 100755
+index 485d75718..e917cd1a6 100755
 --- a/tests/disks/test-qemu-drive-libvirt.sh
 +++ b/tests/disks/test-qemu-drive-libvirt.sh
 @@ -65,13 +65,6 @@ check_output
@@ -497,10 +497,10 @@ index afbeddec6..93df4be0a 100755
  
  $guestfish -d nbd run ||:
 diff --git a/tests/disks/test-qemu-drive.sh b/tests/disks/test-qemu-drive.sh
-index 9ee7df389..b3e4f9903 100755
+index d6ce0f07f..153b9c8cc 100755
 --- a/tests/disks/test-qemu-drive.sh
 +++ b/tests/disks/test-qemu-drive.sh
-@@ -62,35 +62,6 @@ check_output
+@@ -63,35 +63,6 @@ check_output
  grep -sq -- '-drive file=rbd:abc-def/ghi-jkl:auth_supported=none,' "$DEBUG_QEMU_FILE" || fail
  rm "$DEBUG_QEMU_FILE"
  
@@ -536,7 +536,7 @@ index 9ee7df389..b3e4f9903 100755
  # NBD.
  
  guestfish <<EOF ||:
-@@ -108,14 +79,3 @@ EOF
+@@ -109,14 +80,3 @@ EOF
  check_output
  grep -sq -- '-drive file=nbd:unix:/socket,' "$DEBUG_QEMU_FILE" || fail
  rm "$DEBUG_QEMU_FILE"
@@ -552,5 +552,5 @@ index 9ee7df389..b3e4f9903 100755
 -grep -sq -- '-drive file=ssh://rich@example.com/disk.img,' "$DEBUG_QEMU_FILE" || fail
 -rm "$DEBUG_QEMU_FILE"
 -- 
-2.43.0
+2.47.1
 

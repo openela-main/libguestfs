@@ -1,4 +1,4 @@
-From b8c15791942f56030b49c5e725e61bbba4a990d2 Mon Sep 17 00:00:00 2001
+From f8e4c310bb580e576d4962c395a99278e039fdf4 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Tue, 7 Jul 2015 09:28:03 -0400
 Subject: [PATCH] RHEL: Reject use of libguestfs-winsupport features except for
@@ -13,10 +13,10 @@ edits.
  3 files changed, 19 insertions(+)
 
 diff --git a/generator/c.ml b/generator/c.ml
-index 838e7f426..09181028b 100644
+index c6e5dd994..b6cc0da20 100644
 --- a/generator/c.ml
 +++ b/generator/c.ml
-@@ -1836,6 +1836,22 @@ and generate_client_actions actions () =
+@@ -1834,6 +1834,22 @@ and generate_client_actions actions () =
      check_args_validity c_name style;
      trace_call name c_name style;
  
@@ -40,7 +40,7 @@ index 838e7f426..09181028b 100644
       * as a progress bar hint.
       *)
 diff --git a/test-data/phony-guests/make-windows-img.sh b/test-data/phony-guests/make-windows-img.sh
-index 16debd129..1c13ddac3 100755
+index 0ec6b4851..9fa29f98b 100755
 --- a/test-data/phony-guests/make-windows-img.sh
 +++ b/test-data/phony-guests/make-windows-img.sh
 @@ -37,6 +37,7 @@ fi
@@ -65,5 +65,5 @@ index 105291dc3..5ca4f3b6d 100644
      exit (EXIT_FAILURE);
  
 -- 
-2.43.0
+2.47.1
 

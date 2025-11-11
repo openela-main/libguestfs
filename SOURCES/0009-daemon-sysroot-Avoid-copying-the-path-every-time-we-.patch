@@ -1,0 +1,49 @@
+From c931ab3bc807cff785b1271c575855f0906e27b3 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 12 Aug 2025 13:09:16 +0100
+Subject: [PATCH] daemon: sysroot: Avoid copying the path every time we call
+ sysroot ()
+
+This path never changes once the daemon has started up, so we don't
+need to call into C code and copy the string every time.
+---
+ daemon/sysroot-c.c | 4 ++--
+ daemon/sysroot.ml  | 5 ++++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/daemon/sysroot-c.c b/daemon/sysroot-c.c
+index ad31d36ee..e664232b0 100644
+--- a/daemon/sysroot-c.c
++++ b/daemon/sysroot-c.c
+@@ -28,10 +28,10 @@
+ 
+ #include "daemon.h"
+ 
+-extern value guestfs_int_daemon_sysroot (value unitv);
++extern value guestfs_int_daemon_get_sysroot (value unitv);
+ 
+ value
+-guestfs_int_daemon_sysroot (value unitv)
++guestfs_int_daemon_get_sysroot (value unitv)
+ {
+   return caml_copy_string (sysroot);
+ }
+diff --git a/daemon/sysroot.ml b/daemon/sysroot.ml
+index 57e727066..35ae11f3f 100644
+--- a/daemon/sysroot.ml
++++ b/daemon/sysroot.ml
+@@ -18,7 +18,10 @@
+ 
+ open Std_utils
+ 
+-external sysroot : unit -> string = "guestfs_int_daemon_sysroot"
++external get_sysroot : unit -> string = "guestfs_int_daemon_get_sysroot"
++
++let sysroot = lazy (get_sysroot ())
++let sysroot () = Lazy.force sysroot
+ 
+ let sysroot_path path =
+   let sysroot = sysroot () in
+-- 
+2.47.1
+

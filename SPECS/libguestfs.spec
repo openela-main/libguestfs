@@ -30,7 +30,7 @@ ExcludeArch: %{ix86}
 %global verify_tarball_signature 1
 
 # The source directory.
-%global source_directory 1.54-stable
+%global source_directory 1.56-stable
 
 # Filter perl provides.
 %{?perl_default_filter}
@@ -41,8 +41,8 @@ ExcludeArch: %{ix86}
 Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
-Version:       1.54.0
-Release:       5%{?dist}
+Version:       1.56.1
+Release:       3%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -77,25 +77,28 @@ Source7:       libguestfs.keyring
 Source8:       copy-patches.sh
 
 # Patches are maintained in the following repository:
-# https://github.com/libguestfs/libguestfs/commits/rhel-10.0
+# https://github.com/libguestfs/libguestfs/commits/rhel-10.1
 
 # Patches.
-Patch0001:     0001-website-Add-links-for-1.54-and-1.55-download-locatio.patch
-Patch0002:     0002-tests-gdisk-test-expand-gpt.pl-Implement-SKIP-rule-f.patch
-Patch0003:     0003-lib-inspect-osinfo.c-Add-Windows-Server-2025-osinfo.patch
-Patch0004:     0004-build-Assume-__attribute__-cleanup-always-works.patch
-Patch0005:     0005-appliance-Use-stable-owner-group-and-mtime-in-applia.patch
-Patch0006:     0006-appliance-Refactor-the-TAR_COMMAND-macro.patch
-Patch0007:     0007-build-Add-new-dependency-on-json-c.patch
-Patch0008:     0008-daemon-ldm.c-Replace-jansson-with-json-c.patch
-#Patch0009:     0009-common-Update-common-submodule.patch
-Patch0010:     0010-lib-info.c-Replace-jansson-with-json-c.patch
-Patch0011:     0011-lib-direct-Remove-test-for-qemu-mandatory-locking.patch
-Patch0012:     0012-lib-qemu.c-Replace-jansson-with-json-c.patch
-Patch0013:     0013-build-Remove-Jansson-dependency.patch
-Patch0014:     0014-website-Fix-link-to-latest-development-version.patch
-Patch0015:     0015-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
-Patch0016:     0016-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
+Patch0001:     0001-appliance-Ignore-sit0-network-device-in-the-guest.patch
+Patch0002:     0002-lib-libvirt-Debug-error-from-virDomainDestroyFlags.patch
+Patch0003:     0003-lib-libvirt-Sleep-before-retrying-virDomainDestroyFl.patch
+Patch0004:     0004-daemon-Add-contents-of-etc-fstab-to-verbose-log.patch
+Patch0005:     0005-appliance-init-Add-lsblk-and-blkid-output-to-verbose.patch
+Patch0006:     0006-docs-Fix-dead-ntfs-3g-doc-links.patch
+Patch0007:     0007-daemon-inspect-check-etc-crypttab-for-dev-mapper.patch
+Patch0008:     0008-daemon-sysroot-Avoid-double-when-creating-sysroot-pa.patch
+Patch0009:     0009-daemon-sysroot-Avoid-copying-the-path-every-time-we-.patch
+Patch0010:     0010-daemon-Reimplement-guestfs_selinux_relabel-in-OCaml.patch
+Patch0011:     0011-generator-Implement-StringList-for-OCaml-functions.patch
+Patch0012:     0012-generator-Allow-StringList-Pathname-parameters.patch
+Patch0013:     0013-daemon-Deprecate-guestfs_selinux_relabel-replace-wit.patch
+Patch0014:     0014-daemon-inspect_fs_windows.ml-Add-debugging-for-MBR-d.patch
+Patch0015:     0015-daemon-inspect_fs_windows.ml-Add-debugging-when-we-s.patch
+Patch0016:     0016-daemon-inspect_fs_windows.ml-Ignore-blank-disks-in-d.patch
+Patch0017:     0017-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
+Patch0018:     0018-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
+Patch0019:     0019-RHEL-appliance-init-Run-depmod-a-to-rebuild-kernel-m.patch
 
 BuildRequires: autoconf, automake, libtool, gettext-devel
 
@@ -122,15 +125,11 @@ BuildRequires: libselinux-utils
 BuildRequires: libselinux-devel
 BuildRequires: fuse, fuse-devel
 BuildRequires: pcre2-devel
-BuildRequires: file-devel
 BuildRequires: libvirt-devel
 BuildRequires: gperf
-BuildRequires: flex
-BuildRequires: bison
 BuildRequires: rpm-devel
 BuildRequires: cpio
 BuildRequires: libconfig-devel
-BuildRequires: xz-devel
 %if !0%{?rhel}
 BuildRequires: zip
 BuildRequires: unzip
@@ -162,11 +161,10 @@ BuildRequires: gnupg2
 %endif
 
 # For language bindings.
-BuildRequires: ocaml
+BuildRequires: ocaml >= 4.08
 BuildRequires: ocaml-ocamldoc
 BuildRequires: ocaml-findlib-devel
 %if !0%{?rhel}
-BuildRequires: ocaml-ounit-devel
 BuildRequires: lua
 BuildRequires: lua-devel
 %endif
@@ -287,12 +285,6 @@ BuildRequires: xz
 %if !0%{?rhel}
 BuildRequires: zerofree
 %endif
-%if !0%{?rhel}
-%ifnarch %{arm} aarch64 s390 s390x riscv64
-# http://zfs-fuse.net/issues/94
-BuildRequires: zfs-fuse
-%endif
-%endif
 BuildRequires: zstd
 
 # Main package requires the appliance.  This allows the appliance to
@@ -387,9 +379,6 @@ For enhanced features, install:
            libguestfs-ufs  adds UFS (BSD) support
 %endif
            libguestfs-xfs  adds XFS support
-%if !0%{?rhel}
-           libguestfs-zfs  adds ZFS support
-%endif
 
 For developers:
 
@@ -518,20 +507,6 @@ Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
 %description xfs
 This adds XFS support to %{name}.  Install it if you want to process
 disk images containing XFS.
-
-
-%if !0%{?rhel}
-%ifnarch %{arm} aarch64 s390 s390x riscv64
-%package zfs
-Summary:       ZFS support for %{name}
-License:       GPL-2.0-or-later
-Requires:      %{name}%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description zfs
-This adds ZFS support to %{name}.  Install it if you want to process
-disk images containing ZFS.
-%endif
-%endif
 
 
 %package inspect-icons
@@ -872,13 +847,6 @@ move_to strace          zz-packages-rescue
 move_to vim-minimal     zz-packages-rescue
 move_to rsync           zz-packages-rsync
 move_to xfsprogs        zz-packages-xfs
-%if !0%{?rhel}
-%ifnarch %{arm} aarch64 s390 s390x riscv64
-move_to zfs-fuse        zz-packages-zfs
-%endif
-%else
-remove zfs-fuse
-%endif
 
 %if !0%{?rhel}
 # On Fedora you need kernel-modules-extra to be able to mount
@@ -995,14 +963,6 @@ rm ocaml/html/.gitignore
 
 %files xfs
 %{_libdir}/guestfs/supermin.d/zz-packages-xfs
-
-%if !0%{?rhel}
-%ifnarch %{arm} aarch64 s390 s390x riscv64
-%files zfs
-%{_libdir}/guestfs/supermin.d/zz-packages-zfs
-%endif
-%endif
-
 
 %files inspect-icons
 # no files
@@ -1125,6 +1085,35 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Thu Aug 14 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-3
+- Rebase to libguestfs 1.56.1
+  resolves: RHEL-81733
+- Include host kernel information in libguestfs debugging output
+  resolves: RHEL-83026
+- Fix virt-v2v conversion of split /usr Ubuntu 22+
+  resolves: RHEL-87622
+- Remove dependencies on oUnit, flex, bison, file-devel
+- Remove zfs-fuse (not used in RHEL)
+- Fix gating test
+- Fix inspection with duplicated root mountpoint
+  resolves: RHEL-90170
+- Add btrfs-scrub-full API
+  resolves: RHEL-91936
+- Add e2fsck forceno flag
+  resolves: RHEL-92599
+- Capture and raise qemu-img stderr
+  resolves: RHEL-92239
+- Ignore btrfs snapshots of roots
+  resolves: RHEL-93109
+- Add /etc/fstab, lsblk and blkid to verbose output
+  resolves: RHEL-106490
+- Fix conversion of SLES15 with encrypted btrfs filesystem
+  resolves: RHEL-93584
+- Add guestfs_setfiles API
+  resolves: RHEL-108832
+- Ignore blank disks in Windows drive mapping
+  resolves: RHEL-109258
+
 * Tue Nov 26 2024 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-5
 - Rebase to libguestfs 1.54.0
   resolves: RHEL-56810
