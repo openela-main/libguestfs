@@ -1,4 +1,4 @@
-From d9f4ab8dc6c474e9dcf4bc636b07a2705a18a0a7 Mon Sep 17 00:00:00 2001
+From 682765a63ec7c3140e6332f15d9833072eea05e1 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Thu, 8 May 2025 09:10:38 +0100
 Subject: [PATCH] daemon: inspect: Remove duplicate root mountpoints in

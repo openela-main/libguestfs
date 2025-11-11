@@ -1,0 +1,41 @@
+From e73ac4912d4864d5d378cd40bf1979e02bf0fcb1 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 11 Jun 2025 11:38:23 +0100
+Subject: [PATCH] lib/inspect-osinfo.c: Generate new osinfo shortname for SLES
+ >= 15
+
+libosinfo changes the naming scheme it uses for SUSE starting with
+major version 15.  Previously it used names like "sles12" (or
+"sles12sp1"), "sled12" for Server and Desktop variants.  In 15+ it
+uses "sle15" as there are no variants any longer (instead the
+installer asks you what variant you want to install).  We're only
+interested in the Server variant.  Change the name that we return to
+"sle15" or "sle15sp1".
+
+See: https://gitlab.com/libosinfo/osinfo-db/-/commit/b0fa386699ce634abb6dd4b56aa0e83d979353fc
+Fixes: https://issues.redhat.com/browse/RHEL-95791
+Thanks: Ming Xie, Victor Toso
+Related: https://issues.redhat.com/browse/RHEL-95540
+(cherry picked from commit db46bcb5356e1c654a4b5b8ecca1ae657d46b9cf)
+---
+ lib/inspect-osinfo.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/lib/inspect-osinfo.c b/lib/inspect-osinfo.c
+index f792d771..1fc2f59a 100644
+--- a/lib/inspect-osinfo.c
++++ b/lib/inspect-osinfo.c
+@@ -62,10 +62,11 @@ guestfs_impl_inspect_get_osinfo (guestfs_h *g, const char *root)
+     else if (STREQ (distro, "fedora") || STREQ (distro, "mageia"))
+       return safe_asprintf (g, "%s%d", distro, major);
+     else if (STREQ (distro, "sles")) {
++      const char *base = major >= 15 ? "sle" : "sles";
+       if (minor == 0)
+-        return safe_asprintf (g, "%s%d", distro, major);
++        return safe_asprintf (g, "%s%d", base, major);
+       else
+-        return safe_asprintf (g, "%s%dsp%d", distro, major, minor);
++        return safe_asprintf (g, "%s%dsp%d", base, major, minor);
+     }
+     else if (STREQ (distro, "ubuntu"))
+       return safe_asprintf (g, "%s%d.%02d", distro, major, minor);

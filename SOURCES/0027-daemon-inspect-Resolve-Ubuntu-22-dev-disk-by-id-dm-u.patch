@@ -1,4 +1,4 @@
-From 1b3d8b2f1f118b0c2842a8e58ee6ad45ac9ebdd5 Mon Sep 17 00:00:00 2001
+From 180293338e0d127d0545fe03b6141ed04e22e441 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 16 Apr 2025 10:27:25 +0100
 Subject: [PATCH] daemon: inspect: Resolve Ubuntu 22+
@@ -25,7 +25,6 @@ Reported-by: Jaroslav Spanko
 Thanks: Daniel Berrange
 Fixes: https://issues.redhat.com/browse/RHEL-87493
 (cherry picked from commit e43ca1912973b3ddfa73b09a4690aa8bb26e08af)
-(cherry picked from commit 180293338e0d127d0545fe03b6141ed04e22e441)
 ---
  daemon/inspect_fs_unix_fstab.ml | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)

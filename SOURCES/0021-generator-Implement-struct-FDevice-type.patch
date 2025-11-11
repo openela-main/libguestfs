@@ -1,4 +1,4 @@
-From c163e8a4f1675d09834286315a441504fd8ac5c6 Mon Sep 17 00:00:00 2001
+From 4e27b259c166d87a57d133a79b8eed3b556288b8 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 16 Apr 2025 11:35:13 +0100
 Subject: [PATCH] generator: Implement struct FDevice type
@@ -17,7 +17,6 @@ translated in the daemon, we just treat it exactly the same as
 FString.  The vast majority of this patch is this mechanical change.
 
 (cherry picked from commit 0ff73a42c7f4f309fbab11ea2e89ee6f0501367d)
-(cherry picked from commit 4e27b259c166d87a57d133a79b8eed3b556288b8)
 ---
  generator/GObject.ml |  6 +++---
  generator/OCaml.ml   |  6 ++----

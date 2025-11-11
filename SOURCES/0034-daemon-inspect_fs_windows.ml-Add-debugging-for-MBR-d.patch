@@ -1,0 +1,74 @@
+From cbd75c201754ff1c27911e63c92a82e1bcd21661 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 14 Aug 2025 14:56:47 +0100
+Subject: [PATCH] daemon/inspect_fs_windows.ml: Add debugging for MBR drive
+ mappings
+
+The function 'map_registry_disk_blob_gpt' immediately below this one
+has a debugging statement.  Add the equivalent to the function
+'map_registry_disk_blob_mbr'.
+
+The output looks like:
+
+  map_registry_disk_blob_mbr: searching for MBR disk ID 31 32 33 34
+  map_registry_disk_blob_mbr: searching for MBR partition offset 00 00 00 10 00 00 00 00
+
+(cherry picked from commit e18bd72c8edce1f7227ea625031df1f36db1a793)
+---
+ daemon/inspect_fs_windows.ml | 8 ++++++++
+ daemon/utils.ml              | 4 ++++
+ daemon/utils.mli             | 4 ++++
+ 3 files changed, 16 insertions(+)
+
+diff --git a/daemon/inspect_fs_windows.ml b/daemon/inspect_fs_windows.ml
+index 6537481e..18893e86 100644
+--- a/daemon/inspect_fs_windows.ml
++++ b/daemon/inspect_fs_windows.ml
+@@ -376,6 +376,10 @@ and map_registry_disk_blob_mbr devices blob =
+      * disk with this disk ID.
+      *)
+     let diskid = String.sub blob 0 4 in
++    if verbose () then
++      eprintf "map_registry_disk_blob_mbr: searching for MBR disk ID %s\n%!"
++        (hex_of_string diskid);
++
+     let device =
+       List.find (
+         fun dev ->
+@@ -388,6 +392,10 @@ and map_registry_disk_blob_mbr devices blob =
+      * partition byte offset from Parted.part_list.
+      *)
+     let offset = String.sub blob 4 8 in
++    if verbose () then
++      eprintf "map_registry_disk_blob_mbr: searching for MBR partition offset \
++               %s\n%!"
++        (hex_of_string offset);
+     let offset = int_of_le64 offset in
+     let partitions = Parted.part_list device in
+     let partition =
+diff --git a/daemon/utils.ml b/daemon/utils.ml
+index 3b5c957c..bfaab3b0 100644
+--- a/daemon/utils.ml
++++ b/daemon/utils.ml
+@@ -296,3 +296,7 @@ let parse_key_value_strings ?unquote lines =
+   match unquote with
+   | None -> lines
+   | Some f -> List.map (fun (k, v) -> (k, f v)) lines
++
++let hex_of_string s =
++  let bytes = String.map_chars (fun c -> sprintf "%02x" (Char.code c)) s in
++  String.concat " " bytes
+diff --git a/daemon/utils.mli b/daemon/utils.mli
+index e721f28f..250f2f81 100644
+--- a/daemon/utils.mli
++++ b/daemon/utils.mli
+@@ -121,5 +121,9 @@ val parse_key_value_strings : ?unquote:(string -> string) -> string list -> (str
+     it is applied on the values as unquote function.  Empty lines,
+     or that start with a comment character [#], are ignored. *)
+ 
++val hex_of_string : string -> string
++(** Return a string as a list of hex bytes.
++    Use this for debugging msgs only. *)
++
+ (**/**)
+ val get_verbose_flag : unit -> bool

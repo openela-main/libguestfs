@@ -1,4 +1,4 @@
-From 44def297948e482cbfb6ca31c1cc04d6940da65c Mon Sep 17 00:00:00 2001
+From 80b2fcb243613bc16217b5908941ed2607f398fd Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 16 Apr 2025 10:41:59 +0100
 Subject: [PATCH] daemon: Rewrite {pvs,vgs,lvs}-full APIs in OCaml
@@ -13,7 +13,6 @@ already supports many more fields.  We should replace these with APIs
 for getting single named fields from LVM.
 
 (cherry picked from commit a73f248369d35249a9324a0e0df9f7ccd1420d3f)
-(cherry picked from commit 80b2fcb243613bc16217b5908941ed2607f398fd)
 ---
  .gitignore                |   2 +-
  daemon/Makefile.am        |   5 +-

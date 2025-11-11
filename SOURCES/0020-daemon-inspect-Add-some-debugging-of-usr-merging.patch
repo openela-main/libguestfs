@@ -1,10 +1,9 @@
-From 734b3874f6dab725fffdaee9b7df9b632d07d193 Mon Sep 17 00:00:00 2001
+From 68cecb64758b8ff6d3af842721cb7cf706cb5d0c Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 16 Apr 2025 10:01:33 +0100
 Subject: [PATCH] daemon: inspect: Add some debugging of /usr merging
 
 (cherry picked from commit 2d1e8941301373d04a436333219358a72f9660f1)
-(cherry picked from commit 68cecb64758b8ff6d3af842721cb7cf706cb5d0c)
 ---
  daemon/inspect.ml | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)

@@ -37,7 +37,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.54.0
-Release:       8%{?dist}
+Release:       11%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -72,7 +72,7 @@ Source7:       libguestfs.keyring
 Source8:       copy-patches.sh
 
 # Patches are maintained in the following repository:
-# https://github.com/libguestfs/libguestfs/commits/rhel-9.6
+# https://github.com/libguestfs/libguestfs/commits/rhel-9.7
 
 # Patches.
 Patch0001:     0001-website-Add-links-for-1.54-and-1.55-download-locatio.patch
@@ -102,9 +102,15 @@ Patch0024:     0024-generator-Fix-implementation-of-FUUID-for-OCaml-func.patch
 Patch0025:     0025-Update-common-submodule.patch
 Patch0026:     0026-daemon-Rewrite-pvs-vgs-lvs-full-APIs-in-OCaml.patch
 Patch0027:     0027-daemon-inspect-Resolve-Ubuntu-22-dev-disk-by-id-dm-u.patch
-Patch0028:     0028-daemon-fstrim.c-Issue-sync_disks-after-fstrim.patch
-Patch0029:     0029-daemon-fstrim.c-Run-the-fstrim-command-twice.patch
+Patch0028:     0028-RHEL-9-daemon-fstrim.c-Run-the-fstrim-command-twice.patch
+Patch0029:     0029-daemon-fstrim.c-Issue-sync_disks-after-fstrim.patch
 Patch0030:     0030-daemon-inspect-Remove-duplicate-root-mountpoints-in-.patch
+Patch0031:     0031-lib-inspect-osinfo.c-Generate-new-osinfo-shortname-f.patch
+Patch0032:     0032-daemon-Add-contents-of-etc-fstab-to-verbose-log.patch
+Patch0033:     0033-appliance-init-Add-lsblk-and-blkid-output-to-verbose.patch
+Patch0034:     0034-daemon-inspect_fs_windows.ml-Add-debugging-for-MBR-d.patch
+Patch0035:     0035-daemon-inspect_fs_windows.ml-Add-debugging-when-we-s.patch
+Patch0036:     0036-daemon-inspect_fs_windows.ml-Ignore-blank-disks-in-d.patch
 
 BuildRequires: autoconf, automake, libtool, gettext-devel
 
@@ -1114,21 +1120,29 @@ rm ocaml/html/.gitignore
 
 
 %changelog
-* Tue May 20 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-8
-- daemon: inspect: Remove duplicate root mountpoints in /etc/fstab
-  resolves: RHEL-92597
+* Thu Aug 14 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-11
+- Ignore blank disks in Windows drive mapping
+  resolves: RHEL-108803
 
-* Wed Apr 30 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-7
-- Run the fstrim command twice to workaround RHEL 9.5 kernel trimming bug
-  resolves: RHEL-89046
+* Tue Jun 17 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-9
+- Generate correct osinfo for SLES >= 15
+  resolves: RHEL-95791
 
-* Tue Apr 29 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-6
+* Thu May 08 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-8
+- Remove duplicate root mountpoints in /etc/fstab
+  resolves: RHEL-90168
+
+* Fri Apr 25 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-7
+- Run the fstrim command twice
+  resolves: RHEL-88508
+
+* Wed Apr 16 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-6
 - Fix virt-v2v conversion of split /usr Ubuntu 22+
-  resolves: RHEL-88804
+  resolves: RHEL-87493
 
 * Tue Mar 11 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-5
 - Include host kernel information in libguestfs debugging output
-  resolves: RHEL-83032
+  resolves: RHEL-83025
 
 * Mon Feb 24 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.54.0-4
 - Add new APIs to allow command output > 4MB

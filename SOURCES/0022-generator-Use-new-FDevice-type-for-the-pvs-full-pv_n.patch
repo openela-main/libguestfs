@@ -1,4 +1,4 @@
-From f09cfd0e8b2c0cfde07c3f717edc0e8cc71bd016 Mon Sep 17 00:00:00 2001
+From b306532e7a4a3f235b24e5dab22ab36b849ac886 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 16 Apr 2025 11:50:37 +0100
 Subject: [PATCH] generator: Use new FDevice type for the pvs-full pv_name
@@ -8,7 +8,6 @@ Remove the code which did explicit reverse device name translation,
 and use the generator's code instead.
 
 (cherry picked from commit 5a16d1120fb7b046974abde43b1c40250bfd1a95)
-(cherry picked from commit b306532e7a4a3f235b24e5dab22ab36b849ac886)
 ---
  daemon/lvm.c         | 29 +----------------------------
  generator/structs.ml |  2 +-

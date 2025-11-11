@@ -1,0 +1,31 @@
+From 3720994fca930e5cd685e6380ac5cd3068081bb3 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 14 Aug 2025 14:57:45 +0100
+Subject: [PATCH] daemon/inspect_fs_windows.ml: Add debugging when we start
+ registry analysis
+
+Add some debugging when we begin the process of analyzing the Windows
+registry of a guest.
+
+(cherry picked from commit 5c7e15cfae7c91bb2e5685d657695a2d87d88bcd)
+---
+ daemon/inspect_fs_windows.ml | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/daemon/inspect_fs_windows.ml b/daemon/inspect_fs_windows.ml
+index 18893e86..f4e3b998 100644
+--- a/daemon/inspect_fs_windows.ml
++++ b/daemon/inspect_fs_windows.ml
+@@ -207,6 +207,12 @@ and check_windows_registry systemroot data =
+     if Is.is_file system_hive then Some system_hive else None in
+   data.windows_system_hive <- system_hive;
+ 
++  if verbose () then
++    eprintf "check_windows_registry: software hive: %s\n\
++             check_windows_registry: system hive: %s\n%!"
++      (Option.value ~default:"None" software_hive)
++      (Option.value ~default:"None" system_hive);
++
+   match software_hive, system_hive with
+   | None, _ | Some _, None -> ()
+   | Some software_hive, Some system_hive ->

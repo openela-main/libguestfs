@@ -1,4 +1,4 @@
-From 5e18522de2c1e3e79c9cbbdabddc380d6e5ea0f6 Mon Sep 17 00:00:00 2001
+From e9a7378d730477d6a548c18244ba0bde9c7dc93d Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Fri, 25 Apr 2025 15:24:43 +0100
 Subject: [PATCH] daemon/fstrim.c: Issue sync_disks after fstrim
@@ -10,10 +10,10 @@ Thanks: Eric Sandeen
  1 file changed, 8 insertions(+)
 
 diff --git a/daemon/fstrim.c b/daemon/fstrim.c
-index f6869042..3928f8bb 100644
+index 06707a7f..474ef72d 100644
 --- a/daemon/fstrim.c
 +++ b/daemon/fstrim.c
-@@ -116,5 +116,13 @@ do_fstrim (const char *path,
+@@ -127,5 +127,13 @@ do_fstrim (const char *path,
    if (verbose)
      fprintf (stderr, "%s\n", out);
  

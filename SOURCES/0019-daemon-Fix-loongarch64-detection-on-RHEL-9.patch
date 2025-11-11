@@ -1,4 +1,4 @@
-From 9a5892b8df996d764b332565a436621a91f5d8f3 Mon Sep 17 00:00:00 2001
+From fa1c16528267c89de8a2ecebd44405cbd04fa0ee Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Tue, 11 Mar 2025 13:36:12 +0000
 Subject: [PATCH] daemon: Fix loongarch64 detection on RHEL 9

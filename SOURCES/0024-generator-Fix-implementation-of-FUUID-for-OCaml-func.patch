@@ -1,4 +1,4 @@
-From 08a23b0d1f7ecda7eb2be95ca062f77a00e25bcb Mon Sep 17 00:00:00 2001
+From 1b64c54b8a7f3a0ada0cc52fc74d800a55318112 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 16 Apr 2025 13:19:17 +0100
 Subject: [PATCH] generator: Fix implementation of FUUID for OCaml functions
@@ -11,7 +11,6 @@ by OCaml is correct (if not we just assert, it's an internal error).
 (It didn't even compile before, so we know it was never used).
 
 (cherry picked from commit bcd6b3ec3a1038d840e832732b3910f939566436)
-(cherry picked from commit 1b64c54b8a7f3a0ada0cc52fc74d800a55318112)
 ---
  generator/daemon.ml | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)

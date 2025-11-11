@@ -1,12 +1,10 @@
-From fa0d2e8027eb586a06e91e493c4ab265f36dd84d Mon Sep 17 00:00:00 2001
+From c7930f21405720f51d74efa9f6f7b9da0132a929 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Wed, 16 Apr 2025 21:31:49 +0100
 Subject: [PATCH] Update common submodule
 
   Richard W.M. Jones (1):
       mlstdutils: Implement String.implode
-
-(cherry picked from commit c7930f21405720f51d74efa9f6f7b9da0132a929)
 ---
  common | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
