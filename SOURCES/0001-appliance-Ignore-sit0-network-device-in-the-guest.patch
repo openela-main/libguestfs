@@ -25,5 +25,5 @@ index 5d35a47dd..47eb97dfc 100755
      touch /etc/fstab
      rm -f /etc/dhcp/dhclient-enter-hooks.d/resolved
 -- 
-2.47.1
+2.47.3
 

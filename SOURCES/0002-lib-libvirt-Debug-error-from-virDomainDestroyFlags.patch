@@ -25,5 +25,5 @@ index 55a4ad41c..8dbde5341 100644
    /* Retry (indefinitely) if we're just waiting for qemu to shut down.  See:
     * https://www.redhat.com/archives/libvir-list/2016-January/msg00767.html
 -- 
-2.47.1
+2.47.3
 

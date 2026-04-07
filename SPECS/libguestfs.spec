@@ -42,7 +42,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.56.1
-Release:       3%{?dist}
+Release:       4%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -99,6 +99,7 @@ Patch0016:     0016-daemon-inspect_fs_windows.ml-Ignore-blank-disks-in-d.patch
 Patch0017:     0017-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
 Patch0018:     0018-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
 Patch0019:     0019-RHEL-appliance-init-Run-depmod-a-to-rebuild-kernel-m.patch
+Patch0020:     0020-daemon-device-name-translation.c-Fix-btrfs-volume-re.patch
 
 BuildRequires: autoconf, automake, libtool, gettext-devel
 
@@ -1085,6 +1086,10 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Mon Mar 09 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-4
+- Fix btrfs volume reverse translation
+  resolves: RHEL-149119
+
 * Thu Aug 14 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-3
 - Rebase to libguestfs 1.56.1
   resolves: RHEL-81733

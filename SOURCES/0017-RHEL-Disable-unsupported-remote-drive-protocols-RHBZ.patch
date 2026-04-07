@@ -552,5 +552,5 @@ index d6ce0f07f..153b9c8cc 100755
 -grep -sq -- '-drive file=ssh://rich@example.com/disk.img,' "$DEBUG_QEMU_FILE" || fail
 -rm "$DEBUG_QEMU_FILE"
 -- 
-2.47.1
+2.47.3
 

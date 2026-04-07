@@ -28,5 +28,5 @@ index 8dbde5341..c690a444a 100644
    /* "Domain not found" is not treated as an error. */
    if (err && err->code == VIR_ERR_NO_DOMAIN)
 -- 
-2.47.1
+2.47.3
 
