@@ -42,7 +42,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.56.1
-Release:       4%{?dist}
+Release:       6%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -100,6 +100,8 @@ Patch0017:     0017-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
 Patch0018:     0018-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
 Patch0019:     0019-RHEL-appliance-init-Run-depmod-a-to-rebuild-kernel-m.patch
 Patch0020:     0020-daemon-device-name-translation.c-Fix-btrfs-volume-re.patch
+Patch0021:     0021-daemon-listfs.ml-Refactor-is_partition_can_hold_file.patch
+Patch0022:     0022-daemon-listfs.ml-Ignore-CHS-geometry-error-from-part.patch
 
 BuildRequires: autoconf, automake, libtool, gettext-devel
 
@@ -1086,6 +1088,10 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Fri Apr 17 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-6
+- Fix CHS geometry error for Veritas/Sun partitions
+  resolves: RHEL-169224
+
 * Mon Mar 09 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-4
 - Fix btrfs volume reverse translation
   resolves: RHEL-149119
