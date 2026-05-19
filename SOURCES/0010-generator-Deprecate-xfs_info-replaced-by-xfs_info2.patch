@@ -1,0 +1,80 @@
+From 5b3de10b018e891ef7cc7fae0e8b1b32445eb392 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 23 Jan 2026 08:51:11 +0000
+Subject: [PATCH] generator: Deprecate xfs_info (replaced by xfs_info2)
+
+Deprecate this function, and suggest using xfs_info2 as its
+replacement.
+
+(cherry picked from commit 7833461af76d1feaf2dd1e779f7f04bcca91a6bc)
+---
+ generator/actions_core.ml            | 21 ---------------------
+ generator/actions_core_deprecated.ml | 22 ++++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 21 deletions(-)
+
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index f2cf83440..26d77c667 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -7225,27 +7225,6 @@ be returned if you called C<guestfs_list_devices>.
+ To find out the maximum number of devices that could be added,
+ call C<guestfs_max_disks>.|} };
+ 
+-  { defaults with
+-    name = "xfs_info"; added = (1, 19, 21);
+-    style = RStruct ("info", "xfsinfo"), [String (Dev_or_Path, "pathordevice")], [];
+-    impl = OCaml "Xfs.xfs_info";
+-    optional = Some "xfs";
+-    tests = [
+-      InitEmpty, Always, TestResult (
+-        [["part_disk"; "/dev/sda"; "mbr"];
+-         ["mkfs"; "xfs"; "/dev/sda1"; ""; "NOARG"; ""; ""; "NOARG"];
+-         ["mount"; "/dev/sda1"; "/"];
+-         ["xfs_info"; "/"]], "ret->xfs_blocksize == 4096"), []
+-    ];
+-    shortdesc = "get information about the XFS filesystem";
+-    longdesc = {|C<pathordevice> is a mounted XFS filesystem or a device containing
+-an XFS filesystem.  This command returns miscellaneous
+-metadata about the XFS filesystem.
+-
+-The returned struct contains miscellaneous metadata.  Missing
+-fields are returned as C<-1> (for numeric fields) or empty
+-string.|} };
+-
+   { defaults with
+     name = "pvchange_uuid"; added = (1, 19, 26);
+     style = RErr, [String (Device, "device")], [];
+diff --git a/generator/actions_core_deprecated.ml b/generator/actions_core_deprecated.ml
+index aa98bd5fe..308495c45 100644
+--- a/generator/actions_core_deprecated.ml
++++ b/generator/actions_core_deprecated.ml
+@@ -945,4 +945,26 @@ The optional C<force> boolean controls whether the context
+ is reset for customizable files, and also whether the
+ user, role and range parts of the file context is changed.|} };
+ 
++  { defaults with
++    name = "xfs_info"; added = (1, 19, 21);
++    style = RStruct ("info", "xfsinfo"), [String (Dev_or_Path, "pathordevice")], [];
++    impl = OCaml "Xfs.xfs_info";
++    optional = Some "xfs";
++    deprecated_by = Replaced_by "xfs_info2";
++    tests = [
++      InitEmpty, Always, TestResult (
++        [["part_disk"; "/dev/sda"; "mbr"];
++         ["mkfs"; "xfs"; "/dev/sda1"; ""; "NOARG"; ""; ""; "NOARG"];
++         ["mount"; "/dev/sda1"; "/"];
++         ["xfs_info"; "/"]], "ret->xfs_blocksize == 4096"), []
++    ];
++    shortdesc = "get information about the XFS filesystem";
++    longdesc = {|C<pathordevice> is a mounted XFS filesystem or a device containing
++an XFS filesystem.  This command returns miscellaneous
++metadata about the XFS filesystem.
++
++The returned struct contains miscellaneous metadata.  Missing
++fields are returned as C<-1> (for numeric fields) or empty
++string.|} };
++
+ ]
+-- 
+2.47.3
+

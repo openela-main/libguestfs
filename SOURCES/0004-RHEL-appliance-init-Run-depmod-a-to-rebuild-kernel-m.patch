@@ -1,4 +1,4 @@
-From 7a16a0b3580b081abc4880644ed0e34b30670cae Mon Sep 17 00:00:00 2001
+From 4641910dc6aff98c3451041919dcca62b96e4cb7 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Tue, 13 May 2025 17:28:25 +0100
 Subject: [PATCH] RHEL: appliance/init: Run depmod -a to rebuild kernel module

@@ -1,0 +1,47 @@
+From d448d69171b5c1ee14a4eca5dc4964840ba99507 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Mon, 26 Jan 2026 14:30:46 +0000
+Subject: [PATCH] lib/qemu.c: Use machine type none when inspecting QMP
+ properties
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dan mentioned that there is a special machine type ("none") we can use
+when querying for KVM.  It has no CPU, memory, etc and does not run,
+but you can still enable KVM for it.
+
+Note we have to remove the -cpu parameter, otherwise qemu prints this
+error:
+
+  qemu-kvm: apic-id property was not initialized properly
+
+Updates: commit 5da8102f5f59b9781075440dc68c8d08f9c8691e
+Suggested-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit f7a24b2ea81f3c5c2754fcf43e0347c7c5378b4a)
+---
+ lib/qemu.c | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/lib/qemu.c b/lib/qemu.c
+index 19b5aa336..9edbe8208 100644
+--- a/lib/qemu.c
++++ b/lib/qemu.c
+@@ -81,13 +81,7 @@ generic_qmp_test (guestfs_h *g, const char *qmp_command, char **outp)
+   guestfs_int_cmd_add_string_unquoted (cmd, "QEMU_AUDIO_DRV=none ");
+   guestfs_int_cmd_add_string_quoted (cmd, g->hv);
+   guestfs_int_cmd_add_string_unquoted (cmd, " -display none");
+-  guestfs_int_cmd_add_string_unquoted (cmd, " -cpu max");
+-  guestfs_int_cmd_add_string_unquoted (cmd, " -machine ");
+-  guestfs_int_cmd_add_string_quoted (cmd,
+-#ifdef MACHINE_TYPE
+-                                     MACHINE_TYPE ","
+-#endif
+-                                     "accel=kvm:hvf:tcg");
++  guestfs_int_cmd_add_string_unquoted (cmd, " -machine none,accel=kvm:hvf:tcg");
+   guestfs_int_cmd_add_string_unquoted (cmd, " -qmp stdio");
+   guestfs_int_cmd_add_string_unquoted (cmd, " -S");
+   guestfs_int_cmd_clear_capture_errors (cmd);
+-- 
+2.47.3
+

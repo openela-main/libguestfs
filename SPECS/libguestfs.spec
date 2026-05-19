@@ -13,14 +13,7 @@ ExcludeArch: %{ix86}
 # we only do a sanity check that kernel/qemu/libvirt/appliance is not
 # broken.  To perform the full test suite, see instructions here:
 # https://www.redhat.com/archives/libguestfs/2015-September/msg00078.html
-%if !0%{?rhel}
 %global test_arches aarch64 %{power64} s390x x86_64
-%else
-# RHEL 9 only:
-# x86-64:  "/lib64/libc.so.6: CPU ISA level is lower than required"
-#          (RHBZ#1919389)
-%global test_arches NONE
-%endif
 
 # Trim older changelog entries.
 # https://lists.fedoraproject.org/pipermail/devel/2013-April/thread.html#181627
@@ -30,7 +23,7 @@ ExcludeArch: %{ix86}
 %global verify_tarball_signature 1
 
 # The source directory.
-%global source_directory 1.56-stable
+%global source_directory 1.58-stable
 
 # Filter perl provides.
 %{?perl_default_filter}
@@ -41,8 +34,8 @@ ExcludeArch: %{ix86}
 Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
-Version:       1.56.1
-Release:       6%{?dist}
+Version:       1.58.1
+Release:       5%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -77,31 +70,22 @@ Source7:       libguestfs.keyring
 Source8:       copy-patches.sh
 
 # Patches are maintained in the following repository:
-# https://github.com/libguestfs/libguestfs/commits/rhel-10.1
+# https://github.com/libguestfs/libguestfs/commits/rhel-10.2
 
 # Patches.
-Patch0001:     0001-appliance-Ignore-sit0-network-device-in-the-guest.patch
-Patch0002:     0002-lib-libvirt-Debug-error-from-virDomainDestroyFlags.patch
-Patch0003:     0003-lib-libvirt-Sleep-before-retrying-virDomainDestroyFl.patch
-Patch0004:     0004-daemon-Add-contents-of-etc-fstab-to-verbose-log.patch
-Patch0005:     0005-appliance-init-Add-lsblk-and-blkid-output-to-verbose.patch
-Patch0006:     0006-docs-Fix-dead-ntfs-3g-doc-links.patch
-Patch0007:     0007-daemon-inspect-check-etc-crypttab-for-dev-mapper.patch
-Patch0008:     0008-daemon-sysroot-Avoid-double-when-creating-sysroot-pa.patch
-Patch0009:     0009-daemon-sysroot-Avoid-copying-the-path-every-time-we-.patch
-Patch0010:     0010-daemon-Reimplement-guestfs_selinux_relabel-in-OCaml.patch
-Patch0011:     0011-generator-Implement-StringList-for-OCaml-functions.patch
-Patch0012:     0012-generator-Allow-StringList-Pathname-parameters.patch
-Patch0013:     0013-daemon-Deprecate-guestfs_selinux_relabel-replace-wit.patch
-Patch0014:     0014-daemon-inspect_fs_windows.ml-Add-debugging-for-MBR-d.patch
-Patch0015:     0015-daemon-inspect_fs_windows.ml-Add-debugging-when-we-s.patch
-Patch0016:     0016-daemon-inspect_fs_windows.ml-Ignore-blank-disks-in-d.patch
-Patch0017:     0017-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
-Patch0018:     0018-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
-Patch0019:     0019-RHEL-appliance-init-Run-depmod-a-to-rebuild-kernel-m.patch
-Patch0020:     0020-daemon-device-name-translation.c-Fix-btrfs-volume-re.patch
-Patch0021:     0021-daemon-listfs.ml-Refactor-is_partition_can_hold_file.patch
-Patch0022:     0022-daemon-listfs.ml-Ignore-CHS-geometry-error-from-part.patch
+Patch0001:     0001-generator-daemon.ml-Avoid-not-available-macro-for-OC.patch
+Patch0002:     0002-RHEL-Disable-unsupported-remote-drive-protocols-RHBZ.patch
+Patch0003:     0003-RHEL-Reject-use-of-libguestfs-winsupport-features-ex.patch
+Patch0004:     0004-RHEL-appliance-init-Run-depmod-a-to-rebuild-kernel-m.patch
+Patch0005:     0005-lib-qemu.c-Use-machine-type-none-when-inspecting-QMP.patch
+Patch0006:     0006-generator-Fix-description-of-xfs_growfs.patch
+Patch0007:     0007-generator-Fix-description-of-xfs_info.patch
+Patch0008:     0008-New-API-xfs_info2.patch
+Patch0009:     0009-daemon-Reimplement-xfs_info-using-xfs_info2.patch
+Patch0010:     0010-generator-Deprecate-xfs_info-replaced-by-xfs_info2.patch
+Patch0011:     0011-tests-disks-debug-qemu.sh-Fix-test-for-update-QMP-te.patch
+Patch0012:     0012-daemon-listfs.ml-Refactor-is_partition_can_hold_file.patch
+Patch0013:     0013-daemon-listfs.ml-Ignore-CHS-geometry-error-from-part.patch
 
 BuildRequires: autoconf, automake, libtool, gettext-devel
 
@@ -128,7 +112,7 @@ BuildRequires: libselinux-utils
 BuildRequires: libselinux-devel
 BuildRequires: fuse, fuse-devel
 BuildRequires: pcre2-devel
-BuildRequires: libvirt-devel
+BuildRequires: libvirt-devel >= 11.10.0
 BuildRequires: gperf
 BuildRequires: rpm-devel
 BuildRequires: cpio
@@ -140,7 +124,7 @@ BuildRequires: unzip
 BuildRequires: systemd-units
 BuildRequires: netpbm-progs
 BuildRequires: icoutils
-BuildRequires: libvirt-daemon-kvm >= 7.1.0
+BuildRequires: libvirt-daemon-kvm
 %if !0%{?rhel}
 BuildRequires: perl(Expect)
 %endif
@@ -152,12 +136,15 @@ BuildRequires: libldm-devel
 BuildRequires: json-c-devel
 BuildRequires: systemd-devel
 BuildRequires: bash-completion
+%if 0%{?fedora} || 0%{?rhel} >= 11
+BuildRequires: bash-completion-devel
+%endif
 BuildRequires: /usr/bin/ping
 BuildRequires: curl
 BuildRequires: xz
 BuildRequires: zstd
 BuildRequires: libzstd-devel
-BuildRequires: /usr/bin/qemu-img
+BuildRequires: qemu-img >= 7.2.0
 
 %if 0%{verify_tarball_signature}
 BuildRequires: gnupg2
@@ -314,7 +301,7 @@ Requires:      systemd-libs%{?_isa}
 Requires:      fuse
 
 # For core APIs:
-Requires:      /usr/bin/qemu-img
+Requires:      qemu-img
 Requires:      coreutils
 Requires:      grep
 Requires:      tar
@@ -323,7 +310,7 @@ Requires:      tar
 Requires:      xz
 
 # For qemu direct and libvirt backends.
-Requires:      qemu-kvm-core
+Requires:      qemu-kvm-core >= 7.2.0
 %if !0%{?rhel}
 Suggests:      qemu-block-curl
 Suggests:      qemu-block-iscsi
@@ -333,10 +320,10 @@ Suggests:      qemu-block-rbd
 Suggests:      qemu-block-ssh
 %endif
 Recommends:    libvirt-daemon-config-network
-Requires:      libvirt-daemon-driver-qemu >= 7.1.0
+Requires:      libvirt-daemon-driver-qemu >= 11.10.0
 Requires:      libvirt-daemon-driver-secret
 Requires:      libvirt-daemon-driver-storage-core
-Recommends:    passt
+Requires:      passt
 Requires:      (selinux-policy >= 3.11.1-63 if selinux-policy)
 
 %ifarch aarch64
@@ -721,7 +708,7 @@ else
   # https://lists.fedorahosted.org/archives/list/koji-devel@lists.fedorahosted.org/thread/ZIBY53JAURLT3QRBBJIJJ7EZWLZDE3TI/
   # -n 1 because of RHBZ#980502.
   dirs=
-  for d in /var/cache/{dnf,libdnf5,yum} ; do
+  for d in /hermetic_repo /var/cache/{dnf,libdnf5,yum} ; do
     if test -d $d ; then dirs="$dirs $d" ; fi
   done
   test -n "$dirs"
@@ -778,6 +765,15 @@ export LIBGUESTFS_TRACE=1
 export LIBVIRT_DEBUG=1
 
 if ! make quickcheck QUICKCHECK_TEST_TOOL_ARGS="-t 1200"; then
+    cat $HOME/.cache/libvirt/qemu/log/*
+    exit 1
+fi
+
+# As libvirt is the default backend, test that the direct backend
+# works too.  It's a good place to get test coverage across all the
+# architectures.
+if ! LIBGUESTFS_BACKEND=direct \
+     make quickcheck QUICKCHECK_TEST_TOOL_ARGS="-t 1200"; then
     cat $HOME/.cache/libvirt/qemu/log/*
     exit 1
 fi
@@ -972,6 +968,18 @@ rm ocaml/html/.gitignore
 
 
 %files bash-completion
+%if 0%{?fedora} || 0%{?rhel} >= 11
+%dir %{bash_completions_dir}
+%{bash_completions_dir}/guestfish
+%{bash_completions_dir}/guestmount
+%{bash_completions_dir}/guestunmount
+%{bash_completions_dir}/libguestfs-test-tool
+%{bash_completions_dir}/virt-copy-in
+%{bash_completions_dir}/virt-copy-out
+%{bash_completions_dir}/virt-rescue
+%{bash_completions_dir}/virt-tar-in
+%{bash_completions_dir}/virt-tar-out
+%else
 %dir %{_datadir}/bash-completion/completions
 %{_datadir}/bash-completion/completions/guestfish
 %{_datadir}/bash-completion/completions/guestmount
@@ -982,6 +990,7 @@ rm ocaml/html/.gitignore
 %{_datadir}/bash-completion/completions/virt-rescue
 %{_datadir}/bash-completion/completions/virt-tar-in
 %{_datadir}/bash-completion/completions/virt-tar-out
+%endif
 
 
 %files -n ocaml-%{name}
@@ -1088,13 +1097,26 @@ rm ocaml/html/.gitignore
 
 
 %changelog
-* Fri Apr 17 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-6
+* Fri Apr 17 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-5
 - Fix CHS geometry error for Veritas/Sun partitions
-  resolves: RHEL-169224
+  resolves: RHEL-169225
 
-* Mon Mar 09 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-4
-- Fix btrfs volume reverse translation
-  resolves: RHEL-149119
+* Mon Jan 26 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-2
+- Rebase to libguestfs 1.58.1
+  resolves: RHEL-111240
+- Synchronize spec file with Fedora
+- Add new libguestfs ntfs_chmod API
+  resolves: RHEL-113833
+- Use setfiles -A option if available to reduce memory usage
+  resolves: RHEL-114292
+- Add -cpu max when testing for KVM via QMP
+  resolves: RHEL-121076
+- Require passt
+  resolves: RHEL-122315
+- Add AV and GPOs to inspection info
+  resolves: RHEL-125846
+- Add new xfs_info2 API
+  resolves: RHEL-143673
 
 * Thu Aug 14 2025 Richard W.M. Jones <rjones@redhat.com> - 1:1.56.1-3
 - Rebase to libguestfs 1.56.1

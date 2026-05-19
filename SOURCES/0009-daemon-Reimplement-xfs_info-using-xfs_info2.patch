@@ -1,0 +1,411 @@
+From fb77334e1c40ac64535f2e36ee6edbdf54a5a6ac Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 23 Jan 2026 12:27:39 +0000
+Subject: [PATCH] daemon: Reimplement xfs_info using xfs_info2
+
+Remove all the complicated old C parsing code and reimplement xfs_info
+using xfs_info2.  Note that this function will be deprecated.
+
+(cherry picked from commit e1deb358ce19685e4d078a64edfdbe1da7ddf63c)
+---
+ daemon/xfs.c              | 310 --------------------------------------
+ daemon/xfs.ml             |  45 ++++++
+ generator/actions_core.ml |   1 +
+ 3 files changed, 46 insertions(+), 310 deletions(-)
+
+diff --git a/daemon/xfs.c b/daemon/xfs.c
+index aa056ddff..06e5fc072 100644
+--- a/daemon/xfs.c
++++ b/daemon/xfs.c
+@@ -38,316 +38,6 @@ optgroup_xfs_available (void)
+   return prog_exists ("mkfs.xfs");
+ }
+ 
+-/* Return everything up to the first comma, equals or space in the input
+- * string, strdup'ing the return value.
+- */
+-static char *
+-split_strdup (char *string)
+-{
+-  size_t len;
+-  char *ret;
+-
+-  len = strcspn (string, " ,=");
+-  ret = strndup (string, len);
+-  if (!ret) {
+-    reply_with_perror ("malloc");
+-    return NULL;
+-  }
+-  return ret;
+-}
+-
+-static int
+-parse_uint32 (uint32_t *ret, const char *str)
+-{
+-  uint32_t r;
+-
+-  if (sscanf (str, "%" SCNu32, &r) != 1) {
+-    reply_with_error ("cannot parse numeric field from xfs_info: %s", str);
+-    return -1;
+-  }
+-
+-  *ret = r;
+-  return 0;
+-}
+-
+-static int
+-parse_uint64 (uint64_t *ret, const char *str)
+-{
+-  uint64_t r;
+-
+-  if (sscanf (str, "%" SCNu64, &r) != 1) {
+-    reply_with_error ("cannot parse numeric field from xfs_info: %s", str);
+-    return -1;
+-  }
+-
+-  *ret = r;
+-  return 0;
+-}
+-
+-/* Typical crazy output from the xfs_info command:
+- *
+- * meta-data=/dev/sda1              isize=256    agcount=4, agsize=6392 blks
+- *          =                       sectsz=512   attr=2
+- *[         =                       crc=0                                    ]
+- * data     =                       bsize=4096   blocks=25568, imaxpct=25
+- *          =                       sunit=0      swidth=0 blks
+- * naming   =version 2              bsize=4096   ascii-ci=0
+- * log      =internal               bsize=4096   blocks=1200, version=2
+- *          =                       sectsz=512   sunit=0 blks, lazy-count=1
+- * realtime =none                   extsz=4096   blocks=0, rtextents=0
+- *
+- * [...] line only appears in Fedora >= 21
+- *
+- * We may need to revisit this parsing code if the output changes
+- * in future.
+- */
+-static guestfs_int_xfsinfo *
+-parse_xfs_info (char **lines)
+-{
+-  guestfs_int_xfsinfo *ret;
+-  CLEANUP_FREE char *section = NULL; /* first column, eg "meta-data", "data" */
+-  char *p;
+-  size_t i;
+-
+-  ret = malloc (sizeof *ret);
+-  if (ret == NULL) {
+-    reply_with_error ("malloc");
+-    return NULL;
+-  }
+-
+-  /* Initialize fields to NULL or -1 so the caller can tell which fields
+-   * were updated in the code below.
+-   */
+-  ret->xfs_mntpoint = NULL;
+-  ret->xfs_inodesize = -1;
+-  ret->xfs_agcount = -1;
+-  ret->xfs_agsize = -1;
+-  ret->xfs_sectsize = -1;
+-  ret->xfs_attr = -1;
+-  ret->xfs_blocksize = -1;
+-  ret->xfs_datablocks = -1;
+-  ret->xfs_imaxpct = -1;
+-  ret->xfs_sunit = -1;
+-  ret->xfs_swidth = -1;
+-  ret->xfs_dirversion = -1;
+-  ret->xfs_dirblocksize = -1;
+-  ret->xfs_cimode = -1;
+-  ret->xfs_logname = NULL;
+-  ret->xfs_logblocksize = -1;
+-  ret->xfs_logblocks = -1;
+-  ret->xfs_logversion = -1;
+-  ret->xfs_logsectsize = -1;
+-  ret->xfs_logsunit = -1;
+-  ret->xfs_lazycount = -1;
+-  ret->xfs_rtname = NULL;
+-  ret->xfs_rtextsize = -1;
+-  ret->xfs_rtblocks = -1;
+-  ret->xfs_rtextents = -1;
+-
+-  for (i = 0; lines[i] != NULL; ++i) {
+-    if (verbose)
+-      fprintf (stderr, "xfs_info: lines[%zu] = \'%s\'\n", i, lines[i]);
+-
+-    if (c_isalpha (lines[i][0])) {
+-      free (section);
+-      section = split_strdup (lines[i]);
+-      if (!section) goto error;
+-
+-      if (verbose)
+-	fprintf (stderr, "xfs_info: new section %s\n", section);
+-    }
+-
+-    if ((p = strstr (lines[i], "meta-data="))) {
+-      ret->xfs_mntpoint = split_strdup (p + 10);
+-      if (ret->xfs_mntpoint == NULL) goto error;
+-    }
+-    if ((p = strstr (lines[i], "isize="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 6);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_inodesize, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "agcount="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 8);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_agcount, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "agsize="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 7);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_agsize, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "sectsz="))) {
+-      if (section) {
+-	CLEANUP_FREE char *buf = split_strdup (p + 7);
+-	if (buf == NULL) goto error;
+-	if (STREQ (section, "meta-data")) {
+-	  if (parse_uint32 (&ret->xfs_sectsize, buf) == -1)
+-	    goto error;
+-	} else if (STREQ (section, "log")) {
+-	  if (parse_uint32 (&ret->xfs_logsectsize, buf) == -1)
+-	    goto error;
+-	}
+-      }
+-    }
+-    if ((p = strstr (lines[i], "attr="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 5);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_attr, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "bsize="))) {
+-      if (section) {
+-	CLEANUP_FREE char *buf = split_strdup (p + 6);
+-	if (buf == NULL) goto error;
+-	if (STREQ (section, "data")) {
+-	  if (parse_uint32 (&ret->xfs_blocksize, buf) == -1)
+-	    goto error;
+-	} else if (STREQ (section, "naming")) {
+-	  if (parse_uint32 (&ret->xfs_dirblocksize, buf) == -1)
+-	    goto error;
+-	} else if (STREQ (section, "log")) {
+-	  if (parse_uint32 (&ret->xfs_logblocksize, buf) == -1)
+-	    goto error;
+-	}
+-      }
+-    }
+-    if ((p = strstr (lines[i], "blocks="))) {
+-      if (section) {
+-	CLEANUP_FREE char *buf = split_strdup (p + 7);
+-	if (buf == NULL) goto error;
+-	if (STREQ (section, "data")) {
+-	  if (parse_uint64 (&ret->xfs_datablocks, buf) == -1)
+-	    goto error;
+-	} else if (STREQ (section, "log")) {
+-	  if (parse_uint32 (&ret->xfs_logblocks, buf) == -1)
+-	    goto error;
+-	} else if (STREQ (section, "realtime")) {
+-	  if (parse_uint64 (&ret->xfs_rtblocks, buf) == -1)
+-	    goto error;
+-	}
+-      }
+-    }
+-    if ((p = strstr (lines[i], "imaxpct="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 8);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_imaxpct, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "sunit="))) {
+-      if (section) {
+-	CLEANUP_FREE char *buf = split_strdup (p + 6);
+-	if (buf == NULL) goto error;
+-	if (STREQ (section, "data")) {
+-	  if (parse_uint32 (&ret->xfs_sunit, buf) == -1)
+-	    goto error;
+-	} else if (STREQ (section, "log")) {
+-	  if (parse_uint32 (&ret->xfs_logsunit, buf) == -1)
+-	    goto error;
+-	}
+-      }
+-    }
+-    if ((p = strstr (lines[i], "swidth="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 7);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_swidth, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "naming   =version "))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 18);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_dirversion, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "ascii-ci="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 9);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_cimode, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "log      ="))) {
+-      ret->xfs_logname = split_strdup (p + 10);
+-      if (ret->xfs_logname == NULL) goto error;
+-    }
+-    if ((p = strstr (lines[i], "version="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 8);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_logversion, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "lazy-count="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 11);
+-      if (buf == NULL) goto error;
+-      if (parse_uint32 (&ret->xfs_lazycount, buf) == -1)
+-        goto error;
+-    }
+-    if ((p = strstr (lines[i], "realtime ="))) {
+-      ret->xfs_rtname = split_strdup (p + 10);
+-      if (ret->xfs_rtname == NULL) goto error;
+-    }
+-    if ((p = strstr (lines[i], "rtextents="))) {
+-      CLEANUP_FREE char *buf = split_strdup (p + 10);
+-      if (buf == NULL) goto error;
+-      if (parse_uint64 (&ret->xfs_rtextents, buf) == -1)
+-        goto error;
+-    }
+-  }
+-
+-  if (ret->xfs_mntpoint == NULL) {
+-    ret->xfs_mntpoint = strdup ("");
+-    if (ret->xfs_mntpoint == NULL) goto error;
+-  }
+-  if (ret->xfs_logname == NULL) {
+-    ret->xfs_logname = strdup ("");
+-    if (ret->xfs_logname == NULL) goto error;
+-  }
+-  if (ret->xfs_rtname == NULL) {
+-    ret->xfs_rtname = strdup ("");
+-    if (ret->xfs_rtname == NULL) goto error;
+-  }
+-
+-  return ret;
+-
+- error:
+-  free (ret->xfs_mntpoint);
+-  free (ret->xfs_logname);
+-  free (ret->xfs_rtname);
+-  free (ret);
+-  return NULL;
+-}
+-
+-guestfs_int_xfsinfo *
+-do_xfs_info (const char *pathordevice)
+-{
+-  int r;
+-  CLEANUP_FREE char *buf = NULL;
+-  CLEANUP_FREE char *out = NULL, *err = NULL;
+-  CLEANUP_FREE_STRING_LIST char **lines = NULL;
+-  int is_dev;
+-
+-  is_dev = is_device_parameter (pathordevice);
+-  buf = is_dev ? strdup (pathordevice)
+-               : sysroot_path (pathordevice);
+-  if (buf == NULL) {
+-    reply_with_perror ("malloc");
+-    return NULL;
+-  }
+-
+-  r = command (&out, &err, "xfs_info", buf, NULL);
+-  if (r == -1) {
+-    reply_with_error ("%s", err);
+-    return NULL;
+-  }
+-
+-  lines = split_lines (out);
+-  if (lines == NULL)
+-    return NULL;
+-
+-  return parse_xfs_info (lines);
+-}
+-
+ int
+ do_xfs_growfs (const char *path,
+                int datasec, int logsec, int rtsec,
+diff --git a/daemon/xfs.ml b/daemon/xfs.ml
+index 142b26775..157a84058 100644
+--- a/daemon/xfs.ml
++++ b/daemon/xfs.ml
+@@ -17,6 +17,7 @@
+  *)
+ 
+ open Printf
++open Scanf
+ 
+ open Std_utils
+ 
+@@ -126,3 +127,47 @@ let xfs_info2 dev =
+   ) groups;
+ 
+   List.rev !values
++
++(* Deprecated xfs_info. *)
++let xfs_info dev =
++  let h = xfs_info2 dev in
++
++  let find field parsefn =
++    try List.assoc field h |> parsefn
++    with
++    | Not_found ->
++       failwithf "xfs_info: unexpected missing field: %s" field
++    | exn ->
++       failwithf "xfs_info: failure finding field: %s: %s"
++         field (Printexc.to_string exn)
++  in
++
++  let parse_blks s = sscanf s "%ld blks" Fun.id in
++  let parse_version s = sscanf s "version %ld" Fun.id in
++
++  { Structs.xfs_mntpoint = find "meta-data"      Fun.id;
++    xfs_inodesize    = find "meta-data.isize"    Int32.of_string;
++    xfs_agcount      = find "meta-data.agcount"  Int32.of_string;
++    xfs_agsize       = find "meta-data.agsize"   parse_blks;
++    xfs_sectsize     = find "meta-data.sectsz"   Int32.of_string;
++    xfs_attr         = find "meta-data.attr"     Int32.of_string;
++    xfs_blocksize    = find "data.bsize"         Int32.of_string;
++    xfs_datablocks   = find "data.blocks"        Int64.of_string;
++    xfs_imaxpct      = find "data.imaxpct"       Int32.of_string;
++    xfs_sunit        = find "data.sunit"         Int32.of_string;
++    xfs_swidth       = find "data.swidth"        parse_blks;
++    xfs_dirversion   = find "naming"             parse_version;
++    xfs_dirblocksize = find "naming.bsize"       Int32.of_string;
++    xfs_cimode       = find "naming.ascii-ci"    Int32.of_string;
++    xfs_logname      = find "log"                Fun.id;
++    xfs_logblocksize = find "log.bsize"          Int32.of_string;
++    xfs_logblocks    = find "log.blocks"         Int32.of_string;
++    xfs_logversion   = find "log.version"        Int32.of_string;
++    xfs_logsectsize  = find "log.sectsz"         Int32.of_string;
++    xfs_logsunit     = find "log.sunit"          parse_blks;
++    xfs_lazycount    = find "log.lazy-count"     Int32.of_string;
++    xfs_rtname       = find "realtime"           Fun.id;
++    xfs_rtextsize    = find "realtime.extsz"     Int32.of_string;
++    xfs_rtblocks     = find "realtime.blocks"    Int64.of_string;
++    xfs_rtextents    = find "realtime.rtextents" Int64.of_string;
++  }
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index b7e4dae45..f2cf83440 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -7228,6 +7228,7 @@ call C<guestfs_max_disks>.|} };
+   { defaults with
+     name = "xfs_info"; added = (1, 19, 21);
+     style = RStruct ("info", "xfsinfo"), [String (Dev_or_Path, "pathordevice")], [];
++    impl = OCaml "Xfs.xfs_info";
+     optional = Some "xfs";
+     tests = [
+       InitEmpty, Always, TestResult (
+-- 
+2.47.3
+

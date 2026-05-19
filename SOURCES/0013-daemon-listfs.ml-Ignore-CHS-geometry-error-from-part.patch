@@ -1,4 +1,4 @@
-From 7349b7c5aa58b937394f5a44844238ff38e2f80d Mon Sep 17 00:00:00 2001
+From 41cfc0423316acf42fd1122c9b345b49636d9214 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Thu, 16 Apr 2026 08:34:38 +0100
 Subject: [PATCH] daemon/listfs.ml: Ignore CHS geometry error from parted

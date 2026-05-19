@@ -1,0 +1,36 @@
+From d5daad98cfe254c14f4f4f12348f1589838c36a8 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 23 Jan 2026 08:49:14 +0000
+Subject: [PATCH] generator: Fix description of xfs_info
+
+The returned struct contains filesystem metadata, not "geometry
+information" (whatever that means).
+
+(cherry picked from commit 1c9c03bcd40ede11e7f4ece44dab908dcd36a657)
+---
+ generator/actions_core.ml | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index de95bdaf0..b57cf56b0 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -7236,11 +7236,12 @@ call C<guestfs_max_disks>.|} };
+          ["mount"; "/dev/sda1"; "/"];
+          ["xfs_info"; "/"]], "ret->xfs_blocksize == 4096"), []
+     ];
+-    shortdesc = "get geometry of XFS filesystem";
++    shortdesc = "get information about the XFS filesystem";
+     longdesc = {|C<pathordevice> is a mounted XFS filesystem or a device containing
+-an XFS filesystem.  This command returns the geometry of the filesystem.
++an XFS filesystem.  This command returns miscellaneous
++metadata about the XFS filesystem.
+ 
+-The returned struct contains geometry information.  Missing
++The returned struct contains miscellaneous metadata.  Missing
+ fields are returned as C<-1> (for numeric fields) or empty
+ string.|} };
+ 
+-- 
+2.47.3
+

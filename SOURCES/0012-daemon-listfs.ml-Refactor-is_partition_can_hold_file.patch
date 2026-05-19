@@ -1,4 +1,4 @@
-From 8613ec938e6670bf2043eed7634a502e59e261a7 Mon Sep 17 00:00:00 2001
+From 14313b0191d7a1e28b2ed1d923427ed544859e08 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Thu, 16 Apr 2026 08:06:50 +0100
 Subject: [PATCH] daemon/listfs.ml: Refactor is_partition_can_hold_filesystem

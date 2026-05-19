@@ -1,0 +1,33 @@
+From 4a5ee2fbcbef5f10b8faf8f8659ba5f82145f42d Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Mon, 26 Jan 2026 14:59:13 +0000
+Subject: [PATCH] tests/disks/debug-qemu.sh: Fix test for update QMP test
+
+Commit f7a24b2ea8 ("lib/qemu.c: Use machine type none when inspecting
+QMP properties") changed the number of command line parameters used
+before the '-qmp stdio' option when libguestfs queries qemu features.
+This broke some tests which rely on the exact order of parameters.
+
+Fixes: commit f7a24b2ea81f3c5c2754fcf43e0347c7c5378b4a
+Updates: commit 5da8102f5f59b9781075440dc68c8d08f9c8691e
+(cherry picked from commit 45d0e66d02adf1a42c8eca979fa38d2f91d9f3c2)
+---
+ tests/disks/debug-qemu.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/disks/debug-qemu.sh b/tests/disks/debug-qemu.sh
+index 96c90553b..e6e80abe3 100755
+--- a/tests/disks/debug-qemu.sh
++++ b/tests/disks/debug-qemu.sh
+@@ -25,7 +25,7 @@ fi
+ 
+ # The direct backend runs qemu ... -qmp stdio to query for KVM.  For
+ # the test to pass we have to provide an answer here.
+-if [ "x$7" = "x-qmp" ]; then
++if [ "x$5" = "x-qmp" ]; then
+     # Consume stdin first.
+     cat >/dev/null
+     # Write some fake output.
+-- 
+2.47.3
+

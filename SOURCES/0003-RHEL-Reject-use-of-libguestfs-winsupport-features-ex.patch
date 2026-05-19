@@ -1,4 +1,4 @@
-From f8e4c310bb580e576d4962c395a99278e039fdf4 Mon Sep 17 00:00:00 2001
+From 3319a68b51de8ded8a76dcd72f8fce804dd581a4 Mon Sep 17 00:00:00 2001
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Tue, 7 Jul 2015 09:28:03 -0400
 Subject: [PATCH] RHEL: Reject use of libguestfs-winsupport features except for
@@ -13,7 +13,7 @@ edits.
  3 files changed, 19 insertions(+)
 
 diff --git a/generator/c.ml b/generator/c.ml
-index c6e5dd994..b6cc0da20 100644
+index f1217c659..923c2be38 100644
 --- a/generator/c.ml
 +++ b/generator/c.ml
 @@ -1834,6 +1834,22 @@ and generate_client_actions actions () =
