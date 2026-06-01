@@ -1,0 +1,31 @@
+From ae3a26d4a26fd446054ba2b53082b0dd1406d29c Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 5 May 2026 12:03:11 +0100
+Subject: [PATCH] docs/guestfs-recipes.pod: Remove reference to deleted
+ documentation
+
+guestfs-tools commit 82edee0cdc ("sysprep: Remove documentation about
+copying and cloning") removed this documentation from the
+virt-sysprep(1) man page, so remove the reference here.
+
+(cherry picked from commit c08fbe10db0b54916b6a52b2340106a0193a394d)
+---
+ docs/guestfs-recipes.pod | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/docs/guestfs-recipes.pod b/docs/guestfs-recipes.pod
+index 305bd92f6..4a54696c6 100644
+--- a/docs/guestfs-recipes.pod
++++ b/docs/guestfs-recipes.pod
+@@ -68,8 +68,6 @@ Use a combination of tools like L<cp(1)>, L<dd(1)>, and
+ virt tools like L<virt-sysprep(1)>, L<virt-sparsify(1)>
+ and L<virt-resize(1)>.
+ 
+-For more details, see: L<virt-sysprep(1)/COPYING AND CLONING>.
+-
+ =head1 Convert a CD-ROM / DVD / ISO to a tarball
+ 
+ This converts input F<cd.iso> to output F<cd.tar.gz>:
+-- 
+2.47.3
+

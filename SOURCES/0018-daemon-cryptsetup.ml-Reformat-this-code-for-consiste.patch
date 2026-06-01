@@ -1,0 +1,50 @@
+From ac9b4454413097667158a54cbd2d4d646d25e600 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 28 Apr 2026 14:22:51 +0100
+Subject: [PATCH] daemon/cryptsetup.ml: Reformat this code for consistency
+
+No functional change, simply reformat the code for consistency with
+the Luks module.
+
+(cherry picked from commit e3a79166d9a3ce07e3434e6d2504495248160061)
+---
+ daemon/cryptsetup.ml | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/daemon/cryptsetup.ml b/daemon/cryptsetup.ml
+index 002e0993a..47b17856c 100644
+--- a/daemon/cryptsetup.ml
++++ b/daemon/cryptsetup.ml
+@@ -49,15 +49,20 @@ let cryptsetup_open ?(readonly = false) ?crypttype ?cipher device key mapname =
+   output_string chan key;
+   close_out chan;
+ 
+-  let args = ref [] in
+-  List.push_back_list args ["-d"; keyfile];
+-  if readonly then List.push_back args "--readonly";
+-  List.push_back_list args ["open"; device; mapname; "--type"; crypttype];
+-  Option.iter (fun s -> List.push_back_list args ["--cipher"; s]) cipher;
+-
+-  (* Make sure we always remove the temporary file. *)
+-  Fun.protect (fun () -> ignore (command "cryptsetup" !args))
+-    ~finally:(fun () -> unlink keyfile);
++  Fun.protect ~finally:(fun () -> unlink keyfile) (
++    fun () ->
++      let args = ref [] in
++      List.push_back args "-d";
++      List.push_back args keyfile;
++      if readonly then List.push_back args "--readonly";
++      List.push_back args "open";
++      List.push_back args device;
++      List.push_back args mapname;
++      List.push_back args "--type";
++      List.push_back args crypttype;
++      Option.iter (fun s -> List.push_back_list args ["--cipher"; s]) cipher;
++      ignore (command "cryptsetup" !args)
++  );
+ 
+   udev_settle ()
+ 
+-- 
+2.47.3
+

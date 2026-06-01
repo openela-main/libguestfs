@@ -1,0 +1,114 @@
+From b105fe3e7c470ca8b2f51dce10666b6d320e5ba0 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 28 Apr 2026 12:47:12 +0100
+Subject: [PATCH] tests/luks: Test handling of a binary --key <dev>:file:<file>
+
+(cherry picked from commit 2ddbff5c2939fe987388428c8d8aed2575bdec33)
+---
+ test-data/phony-guests/make-fedora-img.pl         |   7 +++++--
+ tests/Makefile.am                                 |   3 ++-
+ tests/luks/fedora-lv3.key                         | Bin 0 -> 10 bytes
+ tests/luks/test-key-option-inspect-luks-on-lvm.sh |  10 +++++-----
+ 4 files changed, 12 insertions(+), 8 deletions(-)
+ create mode 100644 tests/luks/fedora-lv3.key
+
+diff --git a/test-data/phony-guests/make-fedora-img.pl b/test-data/phony-guests/make-fedora-img.pl
+index e4ea07841..6025bc838 100755
+--- a/test-data/phony-guests/make-fedora-img.pl
++++ b/test-data/phony-guests/make-fedora-img.pl
+@@ -234,7 +234,10 @@ EOF
+     $g->luks_format ('/dev/Volume-Group/Root',              'FEDORA-Root', 0);
+     $g->luks_format ('/dev/Volume-Group/Logical-Volume-1',  'FEDORA-LV1',  0);
+     $g->luks_format ('/dev/Volume-Group/Logical-Volume-2',  'FEDORA-LV2',  0);
+-    $g->luks_format ('/dev/Volume-Group/Logical-Volume-3',  'FEDORA-LV3',  0);
++    # This is a little different, because we use a binary passphrase.
++    # The base64 string is "FEDORA\0LV3" (containing ASCII NUL).
++    my $base64_key3 = 'base64:RkVET1JBAExWMw==';
++    $g->luks_format ('/dev/Volume-Group/Logical-Volume-3',   $base64_key3, 0);
+ 
+     # Open the LUKS devices. This creates nodes like /dev/mapper/*-luks.
+     $g->cryptsetup_open ('/dev/Volume-Group/Root',
+@@ -244,7 +247,7 @@ EOF
+     $g->cryptsetup_open ('/dev/Volume-Group/Logical-Volume-2',
+                          'FEDORA-LV2',  'LV2-luks');
+     $g->cryptsetup_open ('/dev/Volume-Group/Logical-Volume-3',
+-                         'FEDORA-LV3',  'LV3-luks');
++                         $base64_key3,  'LV3-luks');
+ 
+     # Phony root filesystem.
+     $g->mkfs ('ext2', '/dev/mapper/Root-luks', blocksize => 4096, label => 'ROOT');
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 91e917b50..f4d92eaa7 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -441,7 +441,8 @@ EXTRA_DIST += \
+ 	luks/test-luks-list.sh \
+ 	luks/test-key-option.sh \
+ 	luks/test-key-option-inspect-luks-on-lvm.sh \
+-	luks/test-key-option-inspect-lvm-on-luks.sh
++	luks/test-key-option-inspect-lvm-on-luks.sh \
++	luks/fedora-lv3.key
+ 
+ TESTS += \
+ 	lvm/test-lvm-filtering.sh \
+diff --git a/tests/luks/fedora-lv3.key b/tests/luks/fedora-lv3.key
+new file mode 100644
+index 0000000000000000000000000000000000000000..89c372fd5df2216b6d2ca9ccb7879dc8ade8ec5c
+GIT binary patch
+literal 10
+RcmZ>Bb@2~!Wbg?y1^^Cl0*3$q
+
+literal 0
+HcmV?d00001
+
+diff --git a/tests/luks/test-key-option-inspect-luks-on-lvm.sh b/tests/luks/test-key-option-inspect-luks-on-lvm.sh
+index 6109c4eec..2ee83332c 100755
+--- a/tests/luks/test-key-option-inspect-luks-on-lvm.sh
++++ b/tests/luks/test-key-option-inspect-luks-on-lvm.sh
+@@ -1,6 +1,6 @@
+ #!/bin/bash -
+ # libguestfs
+-# Copyright (C) 2019-2025 Red Hat Inc.
++# Copyright (C) 2019-2026 Red Hat Inc.
+ #
+ # This program is free software; you can redistribute it and/or modify
+ # it under the terms of the GNU General Public License as published by
+@@ -34,7 +34,7 @@ guestfish=(guestfish --listen --ro --inspector
+ keys_by_lvname=(--key /dev/Volume-Group/Root:key:FEDORA-Root
+                 --key /dev/Volume-Group/Logical-Volume-1:key:FEDORA-LV1
+                 --key /dev/Volume-Group/Logical-Volume-2:key:FEDORA-LV2
+-                --key /dev/Volume-Group/Logical-Volume-3:key:FEDORA-LV3)
++                --key /dev/Volume-Group/Logical-Volume-3:file:luks/fedora-lv3.key)
+ 
+ # The variable assignment below will fail, and abort the script, if guestfish
+ # refuses to start up.
+@@ -96,7 +96,7 @@ GUESTFISH_PID=
+ keys_by_uuid=(--key "$uuid_root":key:FEDORA-Root
+               --key "$uuid_lv1":key:FEDORA-LV1
+               --key "$uuid_lv2":key:FEDORA-LV2
+-              --key "$uuid_lv3":key:FEDORA-LV3)
++              --key "$uuid_lv3":file:luks/fedora-lv3.key)
+ fish_ref=$("${guestfish[@]}" "${keys_by_uuid[@]}")
+ eval "$fish_ref"
+ 
+@@ -113,7 +113,7 @@ keys_by_mapper_lvname=(
+   --key /dev/mapper/Volume--Group-Root:key:FEDORA-Root
+   --key /dev/mapper/Volume--Group-Logical--Volume--1:key:FEDORA-LV1
+   --key /dev/mapper/Volume--Group-Logical--Volume--2:key:FEDORA-LV2
+-  --key /dev/mapper/Volume--Group-Logical--Volume--3:key:FEDORA-LV3
++  --key /dev/mapper/Volume--Group-Logical--Volume--3:file:luks/fedora-lv3.key
+ )
+ fish_ref=$("${guestfish[@]}" "${keys_by_mapper_lvname[@]}")
+ eval "$fish_ref"
+@@ -130,7 +130,7 @@ keys_by_mapper_lvname=(
+   --key all:key:FEDORA-Root
+   --key all:key:FEDORA-LV1
+   --key all:key:FEDORA-LV2
+-  --key all:key:FEDORA-LV3
++  --key all:file:luks/fedora-lv3.key
+ )
+ fish_ref=$("${guestfish[@]}" "${keys_by_mapper_lvname[@]}")
+ eval "$fish_ref"
+-- 
+2.47.3
+

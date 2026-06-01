@@ -1,0 +1,55 @@
+From 596d6c6dc194e914064b53fa68d6834d2e8e78a1 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 5 May 2026 12:22:18 +0100
+Subject: [PATCH] generator: Refer to new virt-customize(1)/FIRSTBOOT section
+
+Documentation about firstboot scripts was consolidated and reworked
+into a new section of the virt-customize(1) manual.  Change the
+existing references.
+
+Update common submodule:
+
+  Richard W.M. Jones (1):
+        mlcustomize: Update generated files
+
+  Srihari Parimi (1):
+        mlcustomize: firstboot.bat must not reboot VM on error code 250
+
+(cherry picked from commit 1f00e533610dc9291337c81669997ebebae23719)
+---
+ common                 |  2 +-
+ generator/customize.ml | 10 ++--------
+ 2 files changed, 3 insertions(+), 9 deletions(-)
+
+Submodule common cf2e12078..dd34aebb4:
+diff --git a/generator/customize.ml b/generator/customize.ml
+index 19511dcdc..8df20ac1d 100644
+--- a/generator/customize.ml
++++ b/generator/customize.ml
+@@ -224,10 +224,7 @@ conveniently wraps the command up in a single line script for you.
+ You can have multiple I<--firstboot> options.  They run in the same
+ order that they appear on the command line.
+ 
+-Please take a look at L<virt-builder(1)/FIRST BOOT SCRIPTS> for more
+-information and caveats about the first boot scripts.
+-
+-See also I<--run>.|};
++See also: L<virt-customize(1)/FIRSTBOOT>, I<--run>.|};
+   };
+ 
+   { op_name = "firstboot-command";
+@@ -241,10 +238,7 @@ boots up (as root, late in the boot process).
+ You can have multiple I<--firstboot> options.  They run in the same
+ order that they appear on the command line.
+ 
+-Please take a look at L<virt-builder(1)/FIRST BOOT SCRIPTS> for more
+-information and caveats about the first boot scripts.
+-
+-See also I<--run>.|};
++See also: L<virt-customize(1)/FIRSTBOOT>, I<--run>.|};
+   };
+ 
+   { op_name = "firstboot-install";
+-- 
+2.47.3
+

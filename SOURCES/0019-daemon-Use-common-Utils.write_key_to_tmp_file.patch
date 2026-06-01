@@ -1,0 +1,81 @@
+From fabe35d7b170eccac917de451fb955be4af0808d Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 28 Apr 2026 10:09:09 +0100
+Subject: [PATCH] daemon: Use common Utils.write_key_to_tmp_file
+
+Move this function to Utils module, and ensure it is called from all
+places where we use Key parameters.
+
+(cherry picked from commit 8a36eb4afa10186bf9c62e121ca4db6ef0ec5a8a)
+---
+ daemon/cryptsetup.ml | 4 +---
+ daemon/luks.ml       | 6 ------
+ daemon/utils.ml      | 6 ++++++
+ daemon/utils.mli     | 6 ++++++
+ 4 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/daemon/cryptsetup.ml b/daemon/cryptsetup.ml
+index 47b17856c..29f3acc4d 100644
+--- a/daemon/cryptsetup.ml
++++ b/daemon/cryptsetup.ml
+@@ -45,9 +45,7 @@ let cryptsetup_open ?(readonly = false) ?crypttype ?cipher device key mapname =
+           failwithf "%s: unknown encrypted device type" t in
+ 
+   (* Write the key to a temporary file. *)
+-  let keyfile, chan = Filename.open_temp_file "crypt" ".key" in
+-  output_string chan key;
+-  close_out chan;
++  let keyfile = write_key_to_tmp_file key in
+ 
+   Fun.protect ~finally:(fun () -> unlink keyfile) (
+     fun () ->
+diff --git a/daemon/luks.ml b/daemon/luks.ml
+index 4e6531755..371c656ef 100644
+--- a/daemon/luks.ml
++++ b/daemon/luks.ml
+@@ -23,12 +23,6 @@ open Std_utils
+ 
+ open Utils
+ 
+-let write_key_to_tmp_file key =
+-  let filename, chan = Filename.open_temp_file "luks" ".out" in
+-  output_string chan key;
+-  close_out chan;
+-  filename
+-
+ let rec luks_format device key keyslot =
+   _luks_format device key keyslot
+ 
+diff --git a/daemon/utils.ml b/daemon/utils.ml
+index 3aa1d7ed2..2a03c7190 100644
+--- a/daemon/utils.ml
++++ b/daemon/utils.ml
+@@ -295,3 +295,9 @@ let parse_key_value_strings ?unquote lines =
+ let hex_of_string s =
+   let bytes = String.map_chars (fun c -> sprintf "%02x" (Char.code c)) s in
+   String.concat " " bytes
++
++let write_key_to_tmp_file key =
++  let filename, chan = Filename.open_temp_file "key" ".out" in
++  output_string chan key;
++  close_out chan;
++  filename
+diff --git a/daemon/utils.mli b/daemon/utils.mli
+index e14735038..730e4af38 100644
+--- a/daemon/utils.mli
++++ b/daemon/utils.mli
+@@ -125,5 +125,11 @@ val hex_of_string : string -> string
+ (** Return a string as a list of hex bytes.
+     Use this for debugging msgs only. *)
+ 
++val write_key_to_tmp_file : string -> string
++(** Write a Key parameter to a temporary file.  Returns the name of
++    the temporary file.
++
++    The caller must call {!Unix.unlink} on the file. *)
++
+ (**/**)
+ val get_verbose_flag : unit -> bool
+-- 
+2.47.3
+

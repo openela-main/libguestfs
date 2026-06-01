@@ -35,7 +35,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.58.1
-Release:       5%{?dist}
+Release:       6%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -86,6 +86,20 @@ Patch0010:     0010-generator-Deprecate-xfs_info-replaced-by-xfs_info2.patch
 Patch0011:     0011-tests-disks-debug-qemu.sh-Fix-test-for-update-QMP-te.patch
 Patch0012:     0012-daemon-listfs.ml-Refactor-is_partition_can_hold_file.patch
 Patch0013:     0013-daemon-listfs.ml-Ignore-CHS-geometry-error-from-part.patch
+Patch0014:     0014-daemon-Move-read_whole_file-to-common-utils.patch
+Patch0015:     0015-generator-Adjust-comment-for-String-Key.patch
+Patch0016:     0016-daemon-Move-some-deprecated-functions-to-new-Luks-mo.patch
+Patch0017:     0017-daemon-Rewrite-some-luks_-APIs-in-OCaml.patch
+Patch0018:     0018-daemon-cryptsetup.ml-Reformat-this-code-for-consiste.patch
+Patch0019:     0019-daemon-Use-common-Utils.write_key_to_tmp_file.patch
+Patch0020:     0020-daemon-Allow-base64-text-as-a-prefix-on-Key-paramete.patch
+Patch0021:     0021-Update-common-submodule.patch
+Patch0022:     0022-tests-luks-Test-handling-of-a-binary-key-dev-file-fi.patch
+Patch0023:     0023-docs-guestfs-recipes.pod-Remove-reference-to-deleted.patch
+Patch0024:     0024-generator-Refer-to-new-virt-customize-1-FIRSTBOOT-se.patch
+
+# For applying patches:
+BuildRequires: git
 
 BuildRequires: autoconf, automake, libtool, gettext-devel
 
@@ -676,8 +690,7 @@ for %{name}.
 %if 0%{verify_tarball_signature}
 %{gpgverify} --keyring='%{SOURCE7}' --signature='%{SOURCE1}' --data='%{SOURCE0}'
 %endif
-%setup -q
-%autopatch -p1
+%autosetup -S git -p1
 
 autoreconf -fiv
 
@@ -1097,6 +1110,11 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Mon May 11 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-6
+- Fix binary LUKS keys
+  resolves: RHEL-174519
+- Use git to apply patches, since there is an unsupported binary patch
+
 * Fri Apr 17 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-5
 - Fix CHS geometry error for Veritas/Sun partitions
   resolves: RHEL-169225

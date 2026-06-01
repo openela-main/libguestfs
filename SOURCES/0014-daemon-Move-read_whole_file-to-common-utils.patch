@@ -1,0 +1,684 @@
+From 1308ee6c911cdaaa9ed15e9fb45a0c59d45c2490 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 28 Apr 2026 11:51:30 +0100
+Subject: [PATCH] daemon: Move read_whole_file to common/utils
+
+Remove our read_whole_file function.  A similar function will be added
+to common/utils which we will use instead.
+
+Update common submodule, pulling in:
+
+  Richard W.M. Jones (2):
+        mldrivers/firmware.ml: Ignore CHS geometry error from parted
+        utils: Add read_whole_file function
+
+  Srihari Parimi (2):
+        mltools: add prefix to debug () output
+        mltools: for external commands include function name in debug() output
+
+  Susant Sahani (1):
+        smp: respect cgroup v2 CPU limits for appliance SMP
+
+(cherry picked from commit 76f590de0626ccc10d8aaecc1a7d9761189b6117)
+---
+ common             |  2 +-
+ daemon/daemon.h    |  1 -
+ daemon/ntfsclone.c |  3 +--
+ daemon/tar.c       |  3 +--
+ daemon/utils.c     | 58 ----------------------------------------------
+ 5 files changed, 3 insertions(+), 64 deletions(-)
+
+Submodule common 3ac5d1841..800510306:
+diff --git a/common/edit/file-edit.c b/common/edit/file-edit.c
+index ef56ed1..a10d61c 100644
+--- a/common/edit/file-edit.c
++++ b/common/edit/file-edit.c
+@@ -119,7 +119,7 @@ edit_file_editor (guestfs_h *g, const char *filename, const char *editor,
+     fprintf (stderr, "%s\n", cmd);
+ 
+   r = system (cmd);
+-  if (r == -1 || WEXITSTATUS (r) != 0) {
++  if (r == -1 || !WIFEXITED (r) || WEXITSTATUS (r) != 0) {
+     perror (cmd);
+     return -1;
+   }
+@@ -194,7 +194,7 @@ edit_file_perl (guestfs_h *g, const char *filename, const char *perl_expr,
+     fprintf (stderr, "%s\n", cmd);
+ 
+   r = system (cmd);
+-  if (r == -1 || WEXITSTATUS (r) != 0)
++  if (r == -1 || !WIFEXITED (r) || WEXITSTATUS (r) != 0)
+     return -1;
+ 
+   if (rename (outfile, tmpfilename) == -1) {
+diff --git a/common/mlpcre/Makefile.am b/common/mlpcre/Makefile.am
+index a1d8b02..30a60f6 100644
+--- a/common/mlpcre/Makefile.am
++++ b/common/mlpcre/Makefile.am
+@@ -83,7 +83,7 @@ endif
+ libmlpcre_a_DEPENDENCIES = $(OBJECTS)
+ 
+ $(MLPCRE_CMA): $(OBJECTS) libmlpcre.a
+-	$(OCAMLFIND) mklib $(OCAMLPACKAGES) \
++	$(AM_V_GEN) $(OCAMLFIND) mklib $(OCAMLPACKAGES) \
+ 	    $(OBJECTS) $(libmlpcre_a_OBJECTS) -cclib -lpcre2-8 -o mlpcre
+ 
+ # Tests.
+diff --git a/common/mlstdutils/Makefile.am b/common/mlstdutils/Makefile.am
+index b9632b0..0f88190 100644
+--- a/common/mlstdutils/Makefile.am
++++ b/common/mlstdutils/Makefile.am
+@@ -84,11 +84,11 @@ endif
+ libmlstdutils_a_DEPENDENCIES = $(OBJECTS)
+ 
+ mlstdutils.cma: $(BOBJECTS)
+-	$(OCAMLFIND) ocamlc $(OCAMLPACKAGES) -a $^ -o $@
++	$(AM_V_GEN) $(OCAMLFIND) ocamlc $(OCAMLPACKAGES) -a $^ -o $@
+ 
+ if HAVE_OCAMLOPT
+ mlstdutils.cmxa: $(XOBJECTS)
+-	$(OCAMLFIND) ocamlopt $(OCAMLPACKAGES) -a $^ -o $@
++	$(AM_V_GEN) $(OCAMLFIND) ocamlopt $(OCAMLPACKAGES) -a $^ -o $@
+ endif
+ 
+ # Tests.
+diff --git a/common/mlstdutils/std_utils.mli b/common/mlstdutils/std_utils.mli
+index 6c1911d..77cf107 100644
+--- a/common/mlstdutils/std_utils.mli
++++ b/common/mlstdutils/std_utils.mli
+@@ -51,6 +51,7 @@ module List : sig
+     val find_all : ('a -> bool) -> 'a list -> 'a list
+     val partition : ('a -> bool) -> 'a list -> 'a list * 'a list
+     val assoc : 'a -> ('a * 'b) list -> 'b
++    val assoc_opt : 'a -> ('a * 'b) list -> 'b option
+     val assq : 'a -> ('a * 'b) list -> 'b
+     val mem_assoc : 'a -> ('a * 'b) list -> bool
+     val mem_assq : 'a -> ('a * 'b) list -> bool
+diff --git a/common/mlutils/Makefile.am b/common/mlutils/Makefile.am
+index d52cb9c..084ce63 100644
+--- a/common/mlutils/Makefile.am
++++ b/common/mlutils/Makefile.am
+@@ -86,7 +86,7 @@ endif
+ libmlcutils_a_DEPENDENCIES = $(OBJECTS)
+ 
+ $(MLCUTILS_CMA): $(OBJECTS) libmlcutils.a
+-	$(OCAMLFIND) mklib $(OCAMLPACKAGES) \
++	$(AM_V_GEN) $(OCAMLFIND) mklib $(OCAMLPACKAGES) \
+ 	    $(OBJECTS) $(libmlcutils_a_OBJECTS) \
+ 	    -cclib -lutils \
+ 	    -o mlcutils
+diff --git a/common/mlutils/c_utils-c.c b/common/mlutils/c_utils-c.c
+index d9c1a48..f0e2798 100644
+--- a/common/mlutils/c_utils-c.c
++++ b/common/mlutils/c_utils-c.c
+@@ -68,7 +68,7 @@ guestfs_int_mlutils_shell_unquote (value strv)
+ 
+   ret = guestfs_int_shell_unquote (String_val (strv));
+   if (ret == NULL)
+-    unix_error (errno, (char *) "guestfs_int_shell_unquote", Nothing);
++    caml_unix_error (errno, (char *) "guestfs_int_shell_unquote", Nothing);
+ 
+   retv = caml_copy_string (ret);
+   free (ret);
+@@ -101,6 +101,8 @@ guestfs_int_mlutils_full_path (value dirv, value namev)
+     name = String_val (Field (namev, 0));
+ 
+   ret = guestfs_int_full_path (String_val (dirv), name);
++  if (ret == NULL)
++    caml_unix_error (errno, (char *) "guestfs_int_full_path", dirv);
+   rv = caml_copy_string (ret);
+   free (ret);
+ 
+diff --git a/common/mlutils/unix_utils-c.c b/common/mlutils/unix_utils-c.c
+index ee5a379..919f526 100644
+--- a/common/mlutils/unix_utils-c.c
++++ b/common/mlutils/unix_utils-c.c
+@@ -65,6 +65,8 @@
+ #include <caml/mlvalues.h>
+ #include <caml/unixsupport.h>
+ 
++#include "guestfs-utils.h"
++
+ extern value guestfs_int_mllib_dev_t_makedev (value majv, value minv);
+ extern value guestfs_int_mllib_dev_t_major (value devv);
+ extern value guestfs_int_mllib_dev_t_minor (value devv);
+@@ -147,7 +149,7 @@ guestfs_int_mllib_fnmatch (value patternv, value strv, value flagsv)
+     /* XXX The fnmatch specification doesn't mention what errors can
+      * be returned by fnmatch.  Assume they are errnos for now.
+      */
+-    unix_error (errno, (char *) "fnmatch", patternv);
++    caml_unix_error (errno, (char *) "fnmatch", patternv);
+   }
+ }
+ 
+@@ -180,16 +182,16 @@ guestfs_int_mllib_fsync_file (value filenamev)
+   /* Note to do fsync you have to open for write. */
+   fd = open (filename, O_RDWR);
+   if (fd == -1)
+-    unix_error (errno, (char *) "open", filenamev);
++    caml_unix_error (errno, (char *) "open", filenamev);
+ 
+   if (fsync (fd) == -1) {
+     err = errno;
+     close (fd);
+-    unix_error (err, (char *) "fsync", filenamev);
++    caml_unix_error (err, (char *) "fsync", filenamev);
+   }
+ 
+   if (close (fd) == -1)
+-    unix_error (errno, (char *) "close", filenamev);
++    caml_unix_error (errno, (char *) "close", filenamev);
+ 
+   CAMLreturn (Val_unit);
+ }
+@@ -203,11 +205,14 @@ guestfs_int_mllib_mkdtemp (value val_pattern)
+ 
+   pattern = strdup (String_val (val_pattern));
+   if (pattern == NULL)
+-    unix_error (errno, (char *) "strdup", val_pattern);
++    caml_unix_error (errno, (char *) "strdup", val_pattern);
+ 
+   ret = mkdtemp (pattern);
+-  if (ret == NULL)
+-    unix_error (errno, (char *) "mkdtemp", val_pattern);
++  if (ret == NULL) {
++    int err = errno;
++    free (pattern);
++    caml_unix_error (err, (char *) "mkdtemp", val_pattern);
++  }
+ 
+   rv = caml_copy_string (ret);
+   free (pattern);
+@@ -224,7 +229,7 @@ guestfs_int_mllib_realpath (value pathv)
+ 
+   r = realpath (String_val (pathv), NULL);
+   if (r == NULL)
+-    unix_error (errno, (char *) "realpath", pathv);
++    caml_unix_error (errno, (char *) "realpath", pathv);
+ 
+   rv = caml_copy_string (r);
+   free (r);
+@@ -252,7 +257,7 @@ guestfs_int_mllib_statvfs_statvfs (value pathv)
+   struct statvfs buf;
+ 
+   if (statvfs (String_val (pathv), &buf) == -1)
+-    unix_error (errno, (char *) "statvfs", pathv);
++    caml_unix_error (errno, (char *) "statvfs", pathv);
+ 
+   f_bsize = buf.f_bsize;
+   f_frsize = buf.f_frsize;
+@@ -276,7 +281,7 @@ guestfs_int_mllib_statvfs_statvfs (value pathv)
+                            (PULARGE_INTEGER) &free_bytes_available,
+                            (PULARGE_INTEGER) &total_number_of_bytes,
+                            (PULARGE_INTEGER) &total_number_of_free_bytes))
+-    unix_error (EIO, (char *) "statvfs: GetDiskFreeSpaceEx", pathv);
++    caml_unix_error (EIO, (char *) "statvfs: GetDiskFreeSpaceEx", pathv);
+ 
+   /* XXX I couldn't determine how to get block size.  MSDN has a
+    * unhelpful hard-coded list here:
+@@ -341,15 +346,17 @@ guestfs_int_mllib_statvfs_statvfs (value pathv)
+   CAMLreturn (rv);
+ }
+ 
+-/* NB: This is a [@@noalloc] call. */
+ value
+ guestfs_int_mllib_statvfs_is_network_filesystem (value pathv)
+ {
++  CAMLparam1 (pathv);
++  CAMLlocal1 (rv);
++
+ #ifdef HAVE_STATFS
+   struct statfs buf;
+ 
+   if (statfs (String_val (pathv), &buf) == -1)
+-    unix_error (errno, (char *) "statvfs", pathv);
++    caml_unix_error (errno, (char *) "statvfs", pathv);
+ 
+   /* Some but not all of these are defined in <linux/magic.h>. */
+ #ifndef CIFS_MAGIC_NUMBER
+@@ -362,12 +369,14 @@ guestfs_int_mllib_statvfs_is_network_filesystem (value pathv)
+ #define SMB_SUPER_MAGIC 0x517b
+ #endif
+ 
+-  return Val_bool ((unsigned int) buf.f_type == CIFS_MAGIC_NUMBER ||
+-                   (unsigned int) buf.f_type == NFS_SUPER_MAGIC ||
+-                   (unsigned int) buf.f_type == SMB_SUPER_MAGIC);
++  rv = Val_bool ((unsigned int) buf.f_type == CIFS_MAGIC_NUMBER ||
++                 (unsigned int) buf.f_type == NFS_SUPER_MAGIC ||
++                 (unsigned int) buf.f_type == SMB_SUPER_MAGIC);
+ #else
+-  return Val_bool (0);
++  rv = Val_bool (0);
+ #endif
++
++  CAMLreturn (rv);
+ }
+ 
+ /* NB: This is a [@@noalloc] call. */
+diff --git a/common/mlutils/unix_utils.ml b/common/mlutils/unix_utils.ml
+index b79144a..9d7e11a 100644
+--- a/common/mlutils/unix_utils.ml
++++ b/common/mlutils/unix_utils.ml
+@@ -82,10 +82,35 @@ module StatVFS = struct
+   let free_space { f_bsize = bsize; f_bavail = bavail } = bsize *^ bavail
+ 
+   external is_network_filesystem : string -> bool =
+-    "guestfs_int_mllib_statvfs_is_network_filesystem" [@@noalloc]
++    "guestfs_int_mllib_statvfs_is_network_filesystem"
+ end
+ 
+ module Sysconf = struct
+   external nr_processors_online : unit -> int =
+     "guestfs_int_mllib_sysconf_nr_processors_online" [@@noalloc]
+ end
++
++module Cgroup = struct
++  let v2_cpus () =
++    let file = "/sys/fs/cgroup/cpu.max" in
++    if Sys.file_exists file then
++      try
++        let line = read_first_line_from_file file in
++        if String.starts_with ~prefix:"max" line then
++          None
++        else
++          let quota, period =
++            Scanf.sscanf line "%Ld %Ld" (fun q p -> (q, p)) in
++          if period > 0L then
++            Some (max 1 (Int64.to_int (Int64.div quota period)))
++          else None
++      with
++      | Scanf.Scan_failure _ | Failure _ | End_of_file -> None
++    else
++      None
++
++  let nr_cpus_available () =
++    match v2_cpus () with
++    | Some cpus -> cpus
++    | None -> Sysconf.nr_processors_online ()
++end
+diff --git a/common/mlutils/unix_utils.mli b/common/mlutils/unix_utils.mli
+index aead4df..cb4f042 100644
+--- a/common/mlutils/unix_utils.mli
++++ b/common/mlutils/unix_utils.mli
+@@ -130,3 +130,21 @@ module Sysconf : sig
+       Note this never fails.  In case we cannot get the number of
+       cores it returns 1. *)
+ end
++
++module Cgroup : sig
++  (** Functions to read CPU limits from cgroup filesystems. *)
++
++  val v2_cpus : unit -> int option
++  (** [v2_cpus ()] reads the cgroup v2 CPU quota from
++      [/sys/fs/cgroup/cpu.max] and returns the number of CPUs
++      allocated (quota / period), or [None] if the file does not
++      exist, the quota is "max" (unlimited), or the file cannot
++      be parsed.  The kernel stores quota and period as [long]
++      values in microseconds, so we parse them as [Int64]. *)
++
++  val nr_cpus_available : unit -> int
++  (** [nr_cpus_available ()] returns the number of CPUs available,
++      taking into account cgroup v2 CPU limits.
++      Falls back to {!Sysconf.nr_processors_online} if no cgroup
++      limits are set. *)
++end
+diff --git a/common/options/keys.c b/common/options/keys.c
+index 7027104..b8f19ce 100644
+--- a/common/options/keys.c
++++ b/common/options/keys.c
+@@ -78,6 +78,7 @@ read_key (const char *param)
+   len = getline (&ret, &allocsize, infp);
+   if (len == -1) {
+     perror ("getline");
++    free (ret);
+     ret = NULL;
+     goto error;
+   }
+diff --git a/common/parallel/parallel.c b/common/parallel/parallel.c
+index 18b0607..88ad819 100644
+--- a/common/parallel/parallel.c
++++ b/common/parallel/parallel.c
+@@ -221,6 +221,7 @@ worker_thread (void *thread_data_vp)
+     g = guestfs_create ();
+     if (g == NULL) {
+       perror ("guestfs_create");
++      fclose (fp);
+       thread_data->r = -1;
+       return &thread_data->r;
+     }
+diff --git a/common/qemuopts/qemuopts.c b/common/qemuopts/qemuopts.c
+index 7dd9136..e351465 100644
+--- a/common/qemuopts/qemuopts.c
++++ b/common/qemuopts/qemuopts.c
+@@ -756,6 +756,11 @@ qemuopts_to_channel (struct qemuopts *qopts, FILE *fp)
+   }
+   fputc ('\n', fp);
+ 
++  if (ferror (fp)) {
++    errno = EIO;
++    return -1;
++  }
++
+   return 0;
+ }
+ 
+@@ -1035,5 +1040,10 @@ qemuopts_to_config_channel (struct qemuopts *qopts, FILE *fp)
+     fprintf (fp, "\n");
+   }
+ 
++  if (ferror (fp)) {
++    errno = EIO;
++    return -1;
++  }
++
+   return 0;
+ }
+diff --git a/common/update-submodule.sh b/common/update-submodule.sh
+new file mode 100755
+index 0000000..ecf22f1
+--- /dev/null
++++ b/common/update-submodule.sh
+@@ -0,0 +1,52 @@
++#!/bin/bash
++# (C) Copyright 2026 Red Hat Inc.
++#
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++#
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this program; if not, write to the Free Software
++# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++
++# Generate a submodule update commit, with formatted shortlog output.
++# Run this from the parent repo like: ./common/update-submodule.sh
++# Then `git commit --amend ...` as desired.
++
++set -euo pipefail
++
++if ! git submodule status common &>/dev/null; then
++    echo "Error: this script must be run from the top directory of a repo with a 'common/' submodule" >&2
++    exit 1
++fi
++
++if ! git diff --quiet --exit-code; then
++    echo "Error: working tree has uncommitted changes" >&2
++    exit 1
++fi
++
++echo "Running: git submodule update --remote common"
++git submodule update --remote common
++
++if git diff --quiet --exit-code; then
++    echo "'common' submodule already up to date"
++    exit 0
++fi
++
++OLD_COMMIT=$(git ls-tree HEAD common | awk '{print $3}')
++NEW_COMMIT=$(git -C common rev-parse HEAD)
++echo "Old 'common' commit: $OLD_COMMIT"
++echo "New 'common' commit: $NEW_COMMIT"
++
++SHORTLOG=$(git -C common shortlog --no-merges "${OLD_COMMIT}..${NEW_COMMIT}" | sed '/^$/!s/^/  /')
++git commit -F - common <<EOF
++common: update submodule
++
++$SHORTLOG
++EOF
+diff --git a/common/utils/Makefile.am b/common/utils/Makefile.am
+index 25c6100..f328dca 100644
+--- a/common/utils/Makefile.am
++++ b/common/utils/Makefile.am
+@@ -30,6 +30,7 @@ libutils_la_SOURCES = \
+ 	libxml2-writer-macros.h \
+ 	pcre2-cleanups.c \
+ 	stringlists-utils.c \
++	whole-file.c \
+ 	utils.c
+ libutils_la_CPPFLAGS = \
+ 	-DGUESTFS_NO_DEPRECATED=1 \
+diff --git a/common/utils/guestfs-utils.h b/common/utils/guestfs-utils.h
+index e861e7d..a8bd9ac 100644
+--- a/common/utils/guestfs-utils.h
++++ b/common/utils/guestfs-utils.h
+@@ -113,4 +113,8 @@ extern const char *guestfs_int_strerror (int errnum, char *buf, size_t buflen);
+ /* environ.c */
+ extern char **guestfs_int_copy_environ (char **env, ...);
+ 
++/* whole-file.c */
++extern int read_whole_file (const char *filename,
++                            char **data_r, size_t *size_r);
++
+ #endif /* GUESTFS_UTILS_H_ */
+diff --git a/common/utils/whole-file.c b/common/utils/whole-file.c
+new file mode 100644
+index 0000000..a896e02
+--- /dev/null
++++ b/common/utils/whole-file.c
+@@ -0,0 +1,111 @@
++/* libguestfs
++ * Copyright (C) 2011-2026 Red Hat Inc.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include <config.h>
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <sys/stat.h>
++#include <libintl.h>
++
++#include "guestfs-utils.h"
++
++/**
++ * Read the whole file C<filename> into a memory buffer.
++ *
++ * The memory buffer is initialized and returned in C<data_r>.  The
++ * size of the file in bytes is returned in C<size_r>.  The return
++ * buffer must be freed by the caller.
++ *
++ * On error this prints an error on C<stderr> and returns -1.  Unlike
++ * the similar C<guestfs_int_read_whole_file> this does not use the
++ * libguestfs handle or call C<error()>.
++ *
++ * For the convenience of callers, the returned buffer is
++ * NUL-terminated (the NUL is not included in the size).
++ *
++ * The file must be a B<regular>, B<local>, B<trusted> file.  In
++ * particular, do not use this function to read files that might be
++ * under control of an untrusted user since that will lead to a
++ * denial-of-service attack.
++ */
++int
++read_whole_file (const char *filename, char **data_r, size_t *size_r)
++{
++  int fd;
++  char *data;
++  off_t size;
++  off_t n;
++  ssize_t r;
++  struct stat statbuf;
++
++  fd = open (filename, O_RDONLY|O_CLOEXEC);
++  if (fd == -1) {
++    perror (filename);
++    return -1;
++  }
++
++  if (fstat (fd, &statbuf) == -1) {
++    perror (filename);
++    close (fd);
++    return -1;
++  }
++
++  size = statbuf.st_size;
++  data = malloc (size + 1);
++  if (data == NULL) {
++    perror ("malloc");
++    close (fd);
++    return -1;
++  }
++
++  n = 0;
++  while (n < size) {
++    r = read (fd, &data[n], size - n);
++    if (r == -1) {
++      perror (filename);
++      free (data);
++      close (fd);
++      return -1;
++    }
++    if (r == 0) {
++      fprintf (stderr, "%s: unexpected end of input", filename);
++      free (data);
++      close (fd);
++      return -1;
++    }
++    n += r;
++  }
++
++  if (close (fd) == -1) {
++    perror (filename);
++    free (data);
++    return -1;
++  }
++
++  /* For convenience of callers, \0-terminate the data. */
++  data[size] = '\0';
++
++  *data_r = data;
++  if (size_r != NULL)
++    *size_r = size;
++
++  return 0;
++}
+diff --git a/daemon/daemon.h b/daemon/daemon.h
+index 72b9e97c0..d3ed90924 100644
+--- a/daemon/daemon.h
++++ b/daemon/daemon.h
+@@ -87,7 +87,6 @@ extern void udev_settle (void);
+ extern int random_name (char *template);
+ extern char *get_random_uuid (void);
+ extern char *make_exclude_from_file (const char *function, char *const *excludes);
+-extern char *read_whole_file (const char *filename, size_t *size_r);
+ 
+ /* mountable functions (in utils.c) */
+ extern char *mountable_to_string (const mountable_t *mountable);
+diff --git a/daemon/ntfsclone.c b/daemon/ntfsclone.c
+index e9a4c3ea9..3a3e9a7a7 100644
+--- a/daemon/ntfsclone.c
++++ b/daemon/ntfsclone.c
+@@ -39,8 +39,7 @@ read_error_file (char *error_file)
+   size_t len;
+   char *str;
+ 
+-  str = read_whole_file (error_file, &len);
+-  if (str == NULL) {
++  if (read_whole_file (error_file, &str, &len) == -1) {
+     str = strdup ("(no error)");
+     if (str == NULL)
+       error (EXIT_FAILURE, errno, "strdup"); /* XXX */
+diff --git a/daemon/tar.c b/daemon/tar.c
+index 1d6a4b7eb..faf46051b 100644
+--- a/daemon/tar.c
++++ b/daemon/tar.c
+@@ -108,8 +108,7 @@ read_error_file (char *error_file)
+   size_t len;
+   char *str;
+ 
+-  str = read_whole_file (error_file, &len);
+-  if (str == NULL) {
++  if (read_whole_file (error_file, &str, &len) == -1) {
+     str = strdup ("(no error)");
+     if (str == NULL)
+       error (EXIT_FAILURE, errno, "strdup"); /* XXX */
+diff --git a/daemon/utils.c b/daemon/utils.c
+index 2da33b9aa..d359d3c3b 100644
+--- a/daemon/utils.c
++++ b/daemon/utils.c
+@@ -845,61 +845,3 @@ cleanup_free_mountable (mountable_t *mountable)
+     free (mountable->volume);
+   }
+ }
+-
+-/**
+- * Read whole file into dynamically allocated array.  If there is an
+- * error, DON'T call reply_with_perror, just return NULL.  Returns a
+- * C<\0>-terminated string.  C<size_r> can be specified to get the
+- * size of the returned data.
+- */
+-char *
+-read_whole_file (const char *filename, size_t *size_r)
+-{
+-  char *r = NULL;
+-  size_t alloc = 0, size = 0;
+-  int fd;
+-
+-  fd = open (filename, O_RDONLY|O_CLOEXEC);
+-  if (fd == -1) {
+-    perror (filename);
+-    return NULL;
+-  }
+-
+-  while (1) {
+-    alloc += 256;
+-    char *r2 = realloc (r, alloc);
+-    if (r2 == NULL) {
+-      perror ("realloc");
+-      free (r);
+-      close (fd);
+-      return NULL;
+-    }
+-    r = r2;
+-
+-    /* The '- 1' in the size calculation ensures there is space below
+-     * to add \0 to the end of the input.
+-     */
+-    ssize_t n = read (fd, r + size, alloc - size - 1);
+-    if (n == -1) {
+-      fprintf (stderr, "read: %s: %m\n", filename);
+-      free (r);
+-      close (fd);
+-      return NULL;
+-    }
+-    if (n == 0)
+-      break;
+-    size += n;
+-  }
+-
+-  if (close (fd) == -1) {
+-    fprintf (stderr, "close: %s: %m\n", filename);
+-    free (r);
+-    return NULL;
+-  }
+-
+-  r[size] = '\0';
+-  if (size_r != NULL)
+-    *size_r = size;
+-
+-  return r;
+-}
+-- 
+2.47.3
+

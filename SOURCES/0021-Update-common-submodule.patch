@@ -1,0 +1,174 @@
+From 7508991c1356155c8fa9dd65d0d5c2c90eea75aa Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 28 Apr 2026 12:34:08 +0100
+Subject: [PATCH] Update common submodule
+
+  Richard W.M. Jones (3):
+      options/keys.c: When reading key from user, prefix with "text:"
+      options/keys.c: When using --key <dev>:key:<string>, prefix with "text:"
+      options/keys.c: When reading the key from a file, encode it with base64
+
+Fixes: https://redhat.atlassian.net/browse/RHEL-170864
+Fixes: https://redhat.atlassian.net/browse/RHEL-171895
+Fixes: https://redhat.atlassian.net/browse/RHEL-171896
+(cherry picked from commit 6a181ecc7abe8cd67ce0ac15a1a75fd58837091e)
+---
+ common | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Submodule common 800510306..cf2e12078:
+diff --git a/common/options/keys.c b/common/options/keys.c
+index b8f19ce..432e26d 100644
+--- a/common/options/keys.c
++++ b/common/options/keys.c
+@@ -37,17 +37,23 @@
+  * Read a passphrase ('Key') from F</dev/tty> with echo off.
+  *
+  * The caller (F<fish/cmds.c>) will call free on the string
+- * afterwards.  Based on the code in cryptsetup file F<lib/utils.c>.
++ * afterwards.
++ *
++ * The entered string is prefixed with "text:..." to avoid ambiguity
++ * (with libguestfs >= 1.60).  Base64 encoding cannot be used here.
++ *
++ * Based on the code in cryptsetup file F<lib/utils.c>.
+  */
+ char *
+ read_key (const char *param)
+ {
+   FILE *infp, *outfp;
+   struct termios orig, temp;
++  CLEANUP_FREE char *key = NULL;
++  size_t keysize = 0;
+   char *ret = NULL;
+   int tty;
+   int tcset = 0;
+-  size_t allocsize = 0;
+   ssize_t len;
+ 
+   /* Read and write to /dev/tty if available. */
+@@ -75,17 +81,21 @@ read_key (const char *param)
+     }
+   }
+ 
+-  len = getline (&ret, &allocsize, infp);
++  len = getline (&key, &keysize, infp);
+   if (len == -1) {
+     perror ("getline");
+-    free (ret);
+-    ret = NULL;
+     goto error;
+   }
+ 
+   /* Remove the terminating \n if there is one. */
+-  if (len > 0 && ret[len-1] == '\n')
+-    ret[len-1] = '\0';
++  if (len > 0 && key[len-1] == '\n')
++    key[len-1] = '\0';
++
++  /* Prefix with "text:". */
++  if (asprintf (&ret, "text:%s", key) == -1) {
++    perror ("asprintf");
++    goto error;
++  }
+ 
+  error:
+   /* Restore echo, close file descriptor. */
+@@ -100,27 +110,60 @@ read_key (const char *param)
+   return ret;
+ }
+ 
++/* Read a key from a file and base64 encode it, returning "base64:..." */
+ static char *
+-read_first_line_from_file (const char *filename)
++read_key_and_base64_encode (const char *filename)
+ {
+-  CLEANUP_FCLOSE FILE *fp = NULL;
+-  char *ret = NULL;
+-  size_t allocsize = 0;
+-  ssize_t len;
++  CLEANUP_FREE char *inp = NULL;
++  char *out;
++  size_t inplen, outlen, i, j;
+ 
+-  fp = fopen (filename, "r");
+-  if (!fp)
+-    error (EXIT_FAILURE, errno, "fopen: %s", filename);
++  if (read_whole_file (filename, &inp, &inplen) == -1)
++    error (EXIT_FAILURE, 0, "read_key_and_base64_encode: read_whole_file: %s",
++           filename);
+ 
+-  len = getline (&ret, &allocsize, fp);
+-  if (len == -1)
+-    error (EXIT_FAILURE, errno, "getline: %s", filename);
++  /* From https://stackoverflow.com/a/6782480 */
++  static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
++                                  'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
++                                  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
++                                  'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
++                                  'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
++                                  'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
++                                  'w', 'x', 'y', 'z', '0', '1', '2', '3',
++                                  '4', '5', '6', '7', '8', '9', '+', '/'};
++  static int mod_table[] = {0, 2, 1};
+ 
+-  /* Remove the terminating \n if there is one. */
+-  if (len > 0 && ret[len-1] == '\n')
+-    ret[len-1] = '\0';
++  outlen = 4 * ((inplen + 2) / 3);
++  out = malloc (outlen + 7 + 1);
++  if (!out)
++    error (EXIT_FAILURE, errno, "read_key_and_base64_encode: %s: malloc",
++           filename);
+ 
+-  return ret;
++  /* Add prefix and NUL-termination, then adjust 'out' to make the
++   * rest of the code simpler.
++   */
++  memcpy (out, "base64:", 7);
++  out[7 + outlen] = '\0';
++  out += 7;
++
++  for (i = 0, j = 0; i < inplen;) {
++    uint32_t octet_a = i < inplen ? (unsigned char) inp[i++] : 0;
++    uint32_t octet_b = i < inplen ? (unsigned char) inp[i++] : 0;
++    uint32_t octet_c = i < inplen ? (unsigned char) inp[i++] : 0;
++
++    uint32_t triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
++
++    assert (j <= outlen-4);
++    out[j++] = encoding_table[(triple >> 3 * 6) & 0x3F];
++    out[j++] = encoding_table[(triple >> 2 * 6) & 0x3F];
++    out[j++] = encoding_table[(triple >> 1 * 6) & 0x3F];
++    out[j++] = encoding_table[(triple >> 0 * 6) & 0x3F];
++  }
++
++  for (i = 0; i < mod_table[inplen % 3]; i++)
++    out[outlen - 1 - i] = '=';
++
++  return out - 7 /* see above */;
+ }
+ 
+ /* Return the key(s) matching this particular device from the
+@@ -164,15 +207,14 @@ get_keys (struct key_store *ks, const char *device, const char *uuid,
+ 
+       switch (key->type) {
+       case key_string:
+-        s = strdup (key->string.s);
+-        if (!s)
+-          error (EXIT_FAILURE, errno, "strdup");
++        if (asprintf (&s, "text:%s", key->string.s) == -1)
++          error (EXIT_FAILURE, errno, "asprintf");
+         match->clevis = false;
+         match->passphrase = s;
+         ++match;
+         break;
+       case key_file:
+-        s = read_first_line_from_file (key->file.name);
++        s = read_key_and_base64_encode (key->file.name);
+         match->clevis = false;
+         match->passphrase = s;
+         ++match;
+-- 
+2.47.3
+

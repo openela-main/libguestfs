@@ -1,0 +1,40 @@
+From 84bc5dc2c9c9c82a27270e8068e224af51b7ac89 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 28 Apr 2026 09:18:27 +0100
+Subject: [PATCH] generator: Adjust comment for String(Key)
+
+Just tidy up the comment.
+
+(cherry picked from commit f2b1d9de9b2adaf9e372438f27da710d243e628d)
+---
+ generator/types.mli | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/generator/types.mli b/generator/types.mli
+index 0e1b89846..01f00044e 100644
+--- a/generator/types.mli
++++ b/generator/types.mli
+@@ -185,12 +185,14 @@ and stringt =
+       stdin or write to stdout. *)
+ 
+   | Key
+-  (** Key material / passphrase.  Eventually we should treat this
+-      as sensitive and mlock it into physical RAM.  However this
+-      is highly complex because of all the places that XDR-encoded
+-      strings can end up.  So currently the only difference from
+-      'PlainString' is the way that guestfish requests these
+-      parameters from the user. *)
++  (** Key material / passphrase.
++
++      Currently the only difference from 'PlainString' is the way
++      that guestfish requests these parameters from the user.
++
++      Eventually we should treat this as sensitive and mlock it
++      into physical RAM.  This is highly complex because of all
++      the places that XDR-encoded strings can end up. *)
+ 
+   | GUID
+   (** A GUID string.
+-- 
+2.47.3
+

@@ -1,0 +1,323 @@
+From fcc511920866437fbe71739f0c170e377e18f73e Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Tue, 28 Apr 2026 09:57:27 +0100
+Subject: [PATCH] daemon: Rewrite some luks_* APIs in OCaml
+
+No change.  Just rewriting these to so that all functions that handle
+cryptsetup Key parameters are written in OCaml, so we can use a common
+function in future for handling base64.
+
+Note that the previous versions of these functions ignored the case of
+cryptsetup exiting with a non-zero error code, as does existing
+Cryptsetup.cryptsetup_open.  Unclear if this is right or not, but this
+change keeps the same behaviour.
+
+(cherry picked from commit ec3548af1e6c75e021e49887fd27efa9262be98b)
+---
+ daemon/luks.c             | 182 --------------------------------------
+ daemon/luks.ml            |  59 ++++++++++++
+ generator/actions_core.ml |   4 +
+ 3 files changed, 63 insertions(+), 182 deletions(-)
+
+diff --git a/daemon/luks.c b/daemon/luks.c
+index 9d120b0eb..db061fe66 100644
+--- a/daemon/luks.c
++++ b/daemon/luks.c
+@@ -34,188 +34,6 @@ optgroup_luks_available (void)
+   return prog_exists ("cryptsetup");
+ }
+ 
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wanalyzer-possible-null-argument"
+-/* Callers must also call remove_temp (tempfile). */
+-static char *
+-write_key_to_temp (const char *key)
+-{
+-  char *tempfile;
+-  int fd;
+-  size_t len;
+-
+-  tempfile = strdup ("/tmp/luksXXXXXX");
+-  if (!tempfile) {
+-    reply_with_perror ("strdup");
+-    return NULL;
+-  }
+-
+-  fd = mkstemp (tempfile);
+-  if (fd == -1) {
+-    reply_with_perror ("mkstemp");
+-    goto error;
+-  }
+-
+-  len = strlen (key);
+-  if (xwrite (fd, key, len) == -1) {
+-    reply_with_perror ("write");
+-    close (fd);
+-    goto error;
+-  }
+-
+-  if (close (fd) == -1) {
+-    reply_with_perror ("close");
+-    goto error;
+-  }
+-
+-  return tempfile;
+-
+- error:
+-  unlink (tempfile);
+-  free (tempfile);
+-  return NULL;
+-}
+-#pragma GCC diagnostic pop
+-
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wanalyzer-double-free"
+-static void
+-remove_temp (char *tempfile)
+-{
+-  unlink (tempfile);
+-  free (tempfile);
+-}
+-#pragma GCC diagnostic pop
+-
+-static int
+-luks_format (const char *device, const char *key, int keyslot,
+-             const char *cipher)
+-{
+-  char *tempfile = write_key_to_temp (key);
+-  if (!tempfile)
+-    return -1;
+-
+-  const char *argv[MAX_ARGS];
+-  char keyslot_s[16];
+-  size_t i = 0;
+-
+-  ADD_ARG (argv, i, "cryptsetup");
+-  ADD_ARG (argv, i, "-q");
+-  if (cipher) {
+-    ADD_ARG (argv, i, "--cipher");
+-    ADD_ARG (argv, i, cipher);
+-  }
+-  ADD_ARG (argv, i, "--key-slot");
+-  snprintf (keyslot_s, sizeof keyslot_s, "%d", keyslot);
+-  ADD_ARG (argv, i, keyslot_s);
+-  ADD_ARG (argv, i, "luksFormat");
+-  ADD_ARG (argv, i, device);
+-  ADD_ARG (argv, i, tempfile);
+-  ADD_ARG (argv, i, NULL);
+-
+-  CLEANUP_FREE char *err = NULL;
+-  int r = commandv (NULL, &err, (const char * const *) argv);
+-  remove_temp (tempfile);
+-
+-  if (r == -1) {
+-    reply_with_error ("%s", err);
+-    return -1;
+-  }
+-
+-  udev_settle ();
+-
+-  return 0;
+-}
+-
+-int
+-do_luks_format (const char *device, const char *key, int keyslot)
+-{
+-  return luks_format (device, key, keyslot, NULL);
+-}
+-
+-int
+-do_luks_format_cipher (const char *device, const char *key, int keyslot,
+-                       const char *cipher)
+-{
+-  return luks_format (device, key, keyslot, cipher);
+-}
+-
+-int
+-do_luks_add_key (const char *device, const char *key, const char *newkey,
+-                 int keyslot)
+-{
+-  char *keyfile = write_key_to_temp (key);
+-  if (!keyfile)
+-    return -1;
+-
+-  char *newkeyfile = write_key_to_temp (newkey);
+-  if (!newkeyfile) {
+-    remove_temp (keyfile);
+-    return -1;
+-  }
+-
+-  const char *argv[MAX_ARGS];
+-  char keyslot_s[16];
+-  size_t i = 0;
+-
+-  ADD_ARG (argv, i, "cryptsetup");
+-  ADD_ARG (argv, i, "-q");
+-  ADD_ARG (argv, i, "-d");
+-  ADD_ARG (argv, i, keyfile);
+-  ADD_ARG (argv, i, "--key-slot");
+-  snprintf (keyslot_s, sizeof keyslot_s, "%d", keyslot);
+-  ADD_ARG (argv, i, keyslot_s);
+-  ADD_ARG (argv, i, "luksAddKey");
+-  ADD_ARG (argv, i, device);
+-  ADD_ARG (argv, i, newkeyfile);
+-  ADD_ARG (argv, i, NULL);
+-
+-  CLEANUP_FREE char *err = NULL;
+-  int r = commandv (NULL, &err, (const char * const *) argv);
+-  remove_temp (keyfile);
+-  remove_temp (newkeyfile);
+-
+-  if (r == -1) {
+-    reply_with_error ("%s", err);
+-    return -1;
+-  }
+-
+-  return 0;
+-}
+-
+-int
+-do_luks_kill_slot (const char *device, const char *key, int keyslot)
+-{
+-  char *tempfile = write_key_to_temp (key);
+-  if (!tempfile)
+-    return -1;
+-
+-  const char *argv[MAX_ARGS];
+-  char keyslot_s[16];
+-  size_t i = 0;
+-
+-  ADD_ARG (argv, i, "cryptsetup");
+-  ADD_ARG (argv, i, "-q");
+-  ADD_ARG (argv, i, "-d");
+-  ADD_ARG (argv, i, tempfile);
+-  ADD_ARG (argv, i, "luksKillSlot");
+-  ADD_ARG (argv, i, device);
+-  snprintf (keyslot_s, sizeof keyslot_s, "%d", keyslot);
+-  ADD_ARG (argv, i, keyslot_s);
+-  ADD_ARG (argv, i, NULL);
+-
+-  CLEANUP_FREE char *err = NULL;
+-  int r = commandv (NULL, &err, (const char * const *) argv);
+-  remove_temp (tempfile);
+-
+-  if (r == -1) {
+-    reply_with_error ("%s", err);
+-    return -1;
+-  }
+-
+-  return 0;
+-}
+-
+ char *
+ do_luks_uuid (const char *device)
+ {
+diff --git a/daemon/luks.ml b/daemon/luks.ml
+index e7e6deefe..4e6531755 100644
+--- a/daemon/luks.ml
++++ b/daemon/luks.ml
+@@ -23,6 +23,65 @@ open Std_utils
+ 
+ open Utils
+ 
++let write_key_to_tmp_file key =
++  let filename, chan = Filename.open_temp_file "luks" ".out" in
++  output_string chan key;
++  close_out chan;
++  filename
++
++let rec luks_format device key keyslot =
++  _luks_format device key keyslot
++
++and luks_format_cipher device key keyslot cipher =
++  _luks_format ~cipher device key keyslot
++
++and _luks_format ?cipher device key keyslot =
++  let tmp = write_key_to_tmp_file key in
++  Fun.protect ~finally:(fun () -> unlink tmp) (
++    fun () ->
++      let args = ref [] in
++      List.push_back args "-q";
++      Option.iter (fun s -> List.push_back_list args ["--cipher"; s]) cipher;
++      List.push_back args "--key-slot";
++      List.push_back args (string_of_int keyslot);
++      List.push_back args "luksFormat";
++      List.push_back args device;
++      List.push_back args tmp;
++      ignore (command "cryptsetup" !args)
++  );
++  udev_settle ()
++
++let luks_add_key device key newkey keyslot =
++  let keyfile = write_key_to_tmp_file key
++  and newkeyfile = write_key_to_tmp_file newkey in
++  Fun.protect ~finally:(fun () -> unlink keyfile; unlink newkeyfile) (
++    fun () ->
++      let args = ref [] in
++      List.push_back args "-q";
++      List.push_back args "-d";
++      List.push_back args keyfile;
++      List.push_back args "--key-slot";
++      List.push_back args (string_of_int keyslot);
++      List.push_back args "luksAddKey";
++      List.push_back args device;
++      List.push_back args newkeyfile;
++      ignore (command "cryptsetup" !args)
++  )
++
++let luks_kill_slot device key keyslot =
++  let tmp = write_key_to_tmp_file key in
++  Fun.protect ~finally:(fun () -> unlink tmp) (
++    fun () ->
++      let args = ref [] in
++      List.push_back args "-q";
++      List.push_back args "-d";
++      List.push_back args tmp;
++      List.push_back args "luksKillSlot";
++      List.push_back args device;
++      List.push_back args (string_of_int keyslot);
++      ignore (command "cryptsetup" !args)
++  )
++
+ (* Deprecated APIs for backwards compatibility. *)
+ let luks_open device key mapname =
+   Cryptsetup.cryptsetup_open ~crypttype:"luks" device key mapname
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index 26d77c667..5876188e9 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -5503,6 +5503,7 @@ group scan.|} };
+   { defaults with
+     name = "luks_format"; added = (1, 5, 2);
+     style = RErr, [String (Device, "device"); String (Key, "key"); Int "keyslot"], [];
++    impl = OCaml "Luks.luks_format";
+     optional = Some "luks";
+     shortdesc = "format a block device as a LUKS encrypted device";
+     longdesc = "\
+@@ -5514,6 +5515,7 @@ supports 8 key slots, numbered 0-7)." };
+   { defaults with
+     name = "luks_format_cipher"; added = (1, 5, 2);
+     style = RErr, [String (Device, "device"); String (Key, "key"); Int "keyslot"; String (PlainString, "cipher")], [];
++    impl = OCaml "Luks.luks_format_cipher";
+     optional = Some "luks";
+     shortdesc = "format a block device as a LUKS encrypted device";
+     longdesc = "\
+@@ -5523,6 +5525,7 @@ it also allows you to set the C<cipher> used." };
+   { defaults with
+     name = "luks_add_key"; added = (1, 5, 2);
+     style = RErr, [String (Device, "device"); String (Key, "key"); String (Key, "newkey"); Int "keyslot"], [];
++    impl = OCaml "Luks.luks_add_key";
+     optional = Some "luks";
+     shortdesc = "add a key on a LUKS encrypted device";
+     longdesc = {|This command adds a new key on LUKS device C<device>.
+@@ -5537,6 +5540,7 @@ first to remove that key.|} };
+   { defaults with
+     name = "luks_kill_slot"; added = (1, 5, 2);
+     style = RErr, [String (Device, "device"); String (Key, "key"); Int "keyslot"], [];
++    impl = OCaml "Luks.luks_kill_slot";
+     optional = Some "luks";
+     shortdesc = "remove a key from a LUKS encrypted device";
+     longdesc = "\
+-- 
+2.47.3
+
