@@ -35,7 +35,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.58.1
-Release:       6%{?dist}
+Release:       8%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -97,6 +97,11 @@ Patch0021:     0021-Update-common-submodule.patch
 Patch0022:     0022-tests-luks-Test-handling-of-a-binary-key-dev-file-fi.patch
 Patch0023:     0023-docs-guestfs-recipes.pod-Remove-reference-to-deleted.patch
 Patch0024:     0024-generator-Refer-to-new-virt-customize-1-FIRSTBOOT-se.patch
+Patch0025:     0025-daemon-Use-bind-mount-to-overwrite-etc-resolv.conf.patch
+Patch0026:     0026-generator-daemon.ml-Implement-OInt-and-OInt64-for-OC.patch
+Patch0027:     0027-daemon-xfs-Rewrite-xfs_repair-implementation-in-OCam.patch
+Patch0028:     0028-daemon-xfs.ml-xfs_repair-Ignore-RHEL-7-AGFL-inconsis.patch
+Patch0029:     0029-daemon-sh.c-o-ro-should-be-two-separate-parameters.patch
 
 # For applying patches:
 BuildRequires: git
@@ -1110,6 +1115,12 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Fri Jul 10 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-8
+- Ignore RHEL 7 AGFL inconsistency in xfs_repair
+  resolves: RHEL-192920
+- Use bind mount to overwrite /etc/resolv.conf
+  resolves: RHEL-192946
+
 * Mon May 11 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-6
 - Fix binary LUKS keys
   resolves: RHEL-174519

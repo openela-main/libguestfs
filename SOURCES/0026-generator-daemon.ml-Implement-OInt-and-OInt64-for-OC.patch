@@ -1,0 +1,35 @@
+From 611bfc4e04959a319b005a4f70640ac5ed5c3ab0 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 8 Apr 2026 15:39:38 +0100
+Subject: [PATCH] generator/daemon.ml: Implement OInt and OInt64 for OCaml
+ daemon functions
+
+Part of the implementation for optional int and int64 parameters of
+OCaml daemon functions was missing, since apparently we never needed
+these before now.
+
+(cherry picked from commit 2be18eb12ed5937052c5510297faf274a38ae940)
+---
+ generator/daemon.ml | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/generator/daemon.ml b/generator/daemon.ml
+index f1f954087..4e2b97180 100644
+--- a/generator/daemon.ml
++++ b/generator/daemon.ml
+@@ -801,8 +801,10 @@ let generate_daemon_caml_stubs () =
+           (match optarg with
+            | OBool _ ->
+               pr "Val_bool (%s)" n;
+-           | OInt _ -> assert false
+-           | OInt64 _ -> assert false
++           | OInt _ ->
++              pr "Val_int (%s)" n;
++           | OInt64 _ ->
++              pr "caml_copy_int64 (%s)" n
+            | OString _ ->
+               pr "caml_copy_string (%s)" n
+            | OStringList _ -> assert false
+-- 
+2.47.3
+

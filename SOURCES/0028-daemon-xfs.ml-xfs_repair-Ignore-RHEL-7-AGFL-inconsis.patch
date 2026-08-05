@@ -1,0 +1,82 @@
+From 80ba97d7ae16d941d6abff0b3652a837c1510e5b Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Thu, 21 May 2026 10:40:20 +0100
+Subject: [PATCH] daemon/xfs.ml: xfs_repair: Ignore RHEL 7 AGFL inconsistency
+
+RHEL 7 XFS had a bug in on-disk AGFL (free list) structs.  This
+was fixed later (https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=96f859d).
+
+For RHEL 7 the on-disk structures could not be modified so the kernel
+was patched to detect the case and do a fix up.
+
+However when virt-v2v runs RHEL 10's xfs_repair on such a filesystem
+it will be confused by the incorrect AGFL layout and issue an error,
+which looks like this:
+
+  $ xfs_repair -n -P filesystem
+  Phase 1 - find and verify superblock...
+  Phase 2 - using internal log
+          - zero log...
+          - scan filesystem freespace and inode maps...
+  bad agbno 0 in agfl, agno 11
+  freeblk count 7 != flcount 6 in ag 11
+  bad agbno 4294967295 in agfl, agno 2
+  freeblk count 7 != flcount 6 in ag 2
+  sb_fdblocks 390330022, counted 390330024
+          - found root inode chunk
+  Phase 3 - for each AG...
+  [...]
+  No modify flag set, skipping filesystem flush and exiting.
+  $ echo $?
+  1
+
+Detect this case using a regexp over the stderr output and ignore it.
+
+Thanks: Sebastian Rodriguez Isaziga
+Thanks: Eric Sandeen
+Thanks: Brian Foster
+Fixes: https://redhat.atlassian.net/browse/RHEL-178287
+(cherry picked from commit f18bb55cf300232a985ca46b3c71f4c6eb97e065)
+---
+ daemon/xfs.ml | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/daemon/xfs.ml b/daemon/xfs.ml
+index 592300c98..bf04349cb 100644
+--- a/daemon/xfs.ml
++++ b/daemon/xfs.ml
+@@ -172,6 +172,9 @@ let xfs_info dev =
+     xfs_rtextents    = find "realtime.rtextents" Int64.of_string;
+   }
+ 
++let bad_agbno_in_agfl_re =
++  PCRE.compile ~anchored:false {|bad agbno \d+ in agfl, agno \d+|}
++
+ let xfs_repair
+       ?(forcelogzero = false)
+       ?(nomodify = false)
+@@ -229,5 +232,20 @@ let xfs_repair
+   );
+ 
+   (* Run the xfs_repair command, returning the status directly. *)
+-  let r, _, _ = commandr "xfs_repair" !args in
++  let r, _, err = commandr "xfs_repair" !args in
++
++  (* RHEL 7 XFS had a bug in on-disk AGFL (free list) structs.  This
++   * was fixed later (linux kernel commit 96f859d).  But the RHEL 7
++   * kernel was patched to detect this case and do a fix up.  Later
++   * xfs_repair (eg RHEL 10) flags the RHEL 7 structs as an error,
++   * incorrectly.  Detect this case and ignore the error. (RHEL-178287)
++   *)
++  let r =
++    if r = 1 && PCRE.matches bad_agbno_in_agfl_re err then (
++      eprintf "xfs_repair: \
++               ignoring RHEL 7 AGFL inconsistency (RHEL-178287)\n%!";
++      0
++    )
++    else r in
++
+   r
+-- 
+2.47.3
+

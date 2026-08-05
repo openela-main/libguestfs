@@ -1,0 +1,27 @@
+From 3c888bfb9fc6968dae7320e4c8e218be3603585b Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Fri, 29 May 2026 12:57:07 +0100
+Subject: [PATCH] daemon/sh.c: "-o ro" should be two separate parameters
+
+Fixes: commit 9c3729f7b671e5631b7e7e200228e313bf85e353
+(cherry picked from commit c2ea01749cd7d567dd23909dabf4392546e31c89)
+---
+ daemon/sh.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/daemon/sh.c b/daemon/sh.c
+index 32077878c..792ef3e0c 100644
+--- a/daemon/sh.c
++++ b/daemon/sh.c
+@@ -190,7 +190,7 @@ set_up_etc_resolv_conf (struct resolver_state *rs)
+   if (verbose)
+     fprintf (stderr, "mount %s to %s\n", src_etc_resolv,
+                         rs->sysroot_etc_resolv_conf);
+-  r = command (NULL, NULL, "mount", "--bind", "-o ro", src_etc_resolv,
++  r = command (NULL, NULL, "mount", "--bind", "-o", "ro", src_etc_resolv,
+                          rs->sysroot_etc_resolv_conf, NULL);
+   if (r == -1) {
+     reply_with_perror ("mount: %s to %s failed\n",
+-- 
+2.47.3
+
