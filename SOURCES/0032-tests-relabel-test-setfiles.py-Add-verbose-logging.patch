@@ -1,0 +1,28 @@
+From 8a027eed6d9cecce30158d27db16da30c055026a Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 22 Jul 2026 14:31:35 +0100
+Subject: [PATCH] tests/relabel/test-setfiles.py: Add verbose logging
+
+This is useful for debugging the test if it fails.
+
+(cherry picked from commit 995f80c7fa4eaa843ae3c7f4fc6083512eef92dc)
+---
+ tests/relabel/test-setfiles.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/tests/relabel/test-setfiles.py b/tests/relabel/test-setfiles.py
+index c36098645..6b080d42a 100755
+--- a/tests/relabel/test-setfiles.py
++++ b/tests/relabel/test-setfiles.py
+@@ -37,6 +37,8 @@ if not os.path.isfile("/etc/selinux/config") or not os.access("/usr/sbin/load_po
+ 
+ # Create a filesystem.
+ g = guestfs.GuestFS(python_return_dict=True)
++g.set_verbose(True)
++g.set_trace(True)
+ g.add_drive_scratch(256 * 1024 * 1024)
+ g.launch()
+ 
+-- 
+2.47.3
+

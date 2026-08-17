@@ -1,0 +1,67 @@
+From 6b63f86f8dd6b66aa7ee29fe4b1b6388192de446 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 22 Jul 2026 14:02:17 +0100
+Subject: [PATCH] generator: Point deprecated SELinux functions to
+ guestfs_setfiles
+
+The four functions guestfs_{set_selinux,get_selinux,setcon,getcon}
+have been deprecated for a very long time.  Previously the deprecation
+message pointed to the also now-deprecated guestfs_selinux_relabel.
+Point it instead to the guestfs_setfiles function.
+
+This just changes documentation and warning messages and has no other
+effects.
+
+(cherry picked from commit 287784095647673b2c81134dc5d5ecf4460df494)
+---
+ generator/actions_core_deprecated.ml       | 4 ++--
+ generator/actions_properties_deprecated.ml | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/generator/actions_core_deprecated.ml b/generator/actions_core_deprecated.ml
+index d930b8b88..f3c444ee1 100644
+--- a/generator/actions_core_deprecated.ml
++++ b/generator/actions_core_deprecated.ml
+@@ -565,7 +565,7 @@ attaches it as a device.|} };
+     name = "setcon"; added = (1, 0, 67);
+     style = RErr, [String (PlainString, "context")], [];
+     optional = Some "selinux";
+-    deprecated_by = Replaced_by "selinux_relabel";
++    deprecated_by = Replaced_by "setfiles";
+     shortdesc = "set SELinux security context";
+     longdesc = "\
+ This sets the SELinux security context of the daemon
+@@ -577,7 +577,7 @@ See the documentation about SELINUX in L<guestfs(3)>." };
+     name = "getcon"; added = (1, 0, 67);
+     style = RString (RPlainString, "context"), [], [];
+     optional = Some "selinux";
+-    deprecated_by = Replaced_by "selinux_relabel";
++    deprecated_by = Replaced_by "setfiles";
+     shortdesc = "get SELinux security context";
+     longdesc = "\
+ This gets the SELinux security context of the daemon.
+diff --git a/generator/actions_properties_deprecated.ml b/generator/actions_properties_deprecated.ml
+index 9e9369ce9..9c8597ca6 100644
+--- a/generator/actions_properties_deprecated.ml
++++ b/generator/actions_properties_deprecated.ml
+@@ -71,7 +71,7 @@ return the default qemu binary name." };
+     style = RErr, [Bool "selinux"], [];
+     fish_alias = ["selinux"]; config_only = true;
+     blocking = false;
+-    deprecated_by = Replaced_by "selinux_relabel";
++    deprecated_by = Replaced_by "setfiles";
+     shortdesc = "set SELinux enabled or disabled at appliance boot";
+     longdesc = {|This sets the selinux flag that is passed to the appliance
+ at boot time.  The default is C<selinux=0> (disabled).
+@@ -86,7 +86,7 @@ see L<guestfs(3)>.|} };
+     name = "get_selinux"; added = (1, 0, 67);
+     style = RBool "selinux", [], [];
+     blocking = false;
+-    deprecated_by = Replaced_by "selinux_relabel";
++    deprecated_by = Replaced_by "setfiles";
+     shortdesc = "get SELinux enabled flag";
+     longdesc = {|This returns the current setting of the selinux flag which
+ is passed to the appliance at boot time.  See C<guestfs_set_selinux>.
+-- 
+2.47.3
+

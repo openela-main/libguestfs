@@ -35,7 +35,7 @@ Summary:       Access and modify virtual machine disk images
 Name:          libguestfs
 Epoch:         1
 Version:       1.58.1
-Release:       8%{?dist}
+Release:       9%{?dist}
 License:       LGPL-2.1-or-later
 
 # Build only for architectures that have a kernel
@@ -102,6 +102,12 @@ Patch0026:     0026-generator-daemon.ml-Implement-OInt-and-OInt64-for-OC.patch
 Patch0027:     0027-daemon-xfs-Rewrite-xfs_repair-implementation-in-OCam.patch
 Patch0028:     0028-daemon-xfs.ml-xfs_repair-Ignore-RHEL-7-AGFL-inconsis.patch
 Patch0029:     0029-daemon-sh.c-o-ro-should-be-two-separate-parameters.patch
+Patch0030:     0030-generator-Point-deprecated-SELinux-functions-to-gues.patch
+Patch0031:     0031-tests-relabel-Add-a-new-test-for-setfiles.patch
+Patch0032:     0032-tests-relabel-test-setfiles.py-Add-verbose-logging.patch
+Patch0033:     0033-daemon-Implement-OStringList-for-OCaml-functions.patch
+Patch0034:     0034-daemon-Add-new-optional-excludes-parameter-to-guestf.patch
+Patch0035:     0035-tests-relabel-test-setfiles.py-Add-a-test-of-setfile.patch
 
 # For applying patches:
 BuildRequires: git
@@ -1115,6 +1121,10 @@ rm ocaml/html/.gitignore
 
 
 %changelog
+* Thu Aug 13 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-9
+- Add setfiles optional excludes parameter to libguestfs
+  resolves: RHEL-239808
+
 * Fri Jul 10 2026 Richard W.M. Jones <rjones@redhat.com> - 1:1.58.1-8
 - Ignore RHEL 7 AGFL inconsistency in xfs_repair
   resolves: RHEL-192920

@@ -1,0 +1,46 @@
+From 5cd0f10dac7047aa09dafd6280ff700118b9bb27 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 22 Jul 2026 14:13:35 +0100
+Subject: [PATCH] daemon: Implement OStringList for OCaml functions
+
+Implement optional string list parameters for OCaml functions.  This
+was unimplemented for daemon functions.
+
+Fixes: commit fd4db60cff ("generator: Implement StringList for OCaml functions", 2025)
+Fixes: commit d5b6f1df5f ("daemon: Allow parts of the daemon and APIs to be written in OCaml.", 2017)
+(cherry picked from commit 9d673ed25a59880aaabef29546871263ab5f4bac)
+---
+ daemon/daemon-c.c   | 2 +-
+ generator/daemon.ml | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/daemon/daemon-c.c b/daemon/daemon-c.c
+index 371c2a9e4..17d1ad217 100644
+--- a/daemon/daemon-c.c
++++ b/daemon/daemon-c.c
+@@ -114,7 +114,7 @@ guestfs_int_daemon_copy_mountable (const mountable_t *mountable)
+   CAMLreturn (r);
+ }
+ 
+-/* Implement StringList(...) parameter. */
++/* Implement StringList and OStringList parameters. */
+ value
+ guestfs_int_daemon_copy_string_list (char * const *strs)
+ {
+diff --git a/generator/daemon.ml b/generator/daemon.ml
+index 4e2b97180..d26acbc1a 100644
+--- a/generator/daemon.ml
++++ b/generator/daemon.ml
+@@ -807,7 +807,8 @@ let generate_daemon_caml_stubs () =
+               pr "caml_copy_int64 (%s)" n
+            | OString _ ->
+               pr "caml_copy_string (%s)" n
+-           | OStringList _ -> assert false
++           | OStringList _ ->
++              pr "guestfs_int_daemon_copy_string_list (%s)" n
+           );
+           pr ";\n";
+           pr "    args[%d] = caml_alloc (1, 0);\n" !i;
+-- 
+2.47.3
+

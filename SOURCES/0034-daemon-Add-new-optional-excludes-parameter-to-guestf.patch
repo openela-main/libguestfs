@@ -1,0 +1,62 @@
+From d35736f98be5c84cc8e5cc0fc08ee2588046ce47 Mon Sep 17 00:00:00 2001
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Wed, 22 Jul 2026 14:20:54 +0100
+Subject: [PATCH] daemon: Add new optional excludes parameter to
+ guestfs_setfiles
+
+This allows you to append strings to the built in list of exclude
+directories.  These are simply passed to setfiles via the -e option.
+
+(cherry picked from commit 5364e6abbcd1ee42f23b26306225269329e7c663)
+---
+ daemon/selinux.ml         | 4 ++--
+ generator/actions_core.ml | 7 +++++--
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/daemon/selinux.ml b/daemon/selinux.ml
+index 9802e8913..30a54326e 100644
+--- a/daemon/selinux.ml
++++ b/daemon/selinux.ml
+@@ -44,12 +44,12 @@ let setfiles_has_option =
+        Hashtbl.add h flag r;
+        r
+ 
+-let setfiles ?(force = false) specfile paths =
++let setfiles ?(force = false) ?(excludes = []) specfile paths =
+   if paths = [] then ()
+   else (
+     (* Prefix /sysroot on all paths. *)
+     let ignored_paths =
+-      [ "/dev"; "/proc"; "/selinux"; "/sys" ] |>
++      [ "/dev"; "/proc"; "/selinux"; "/sys" ] @ excludes |>
+       List.map sysroot_path in
+     let specfile = sysroot_path specfile in
+     let paths = List.map sysroot_path paths in
+diff --git a/generator/actions_core.ml b/generator/actions_core.ml
+index 5ded987f4..294abbdff 100644
+--- a/generator/actions_core.ml
++++ b/generator/actions_core.ml
+@@ -9537,7 +9537,7 @@ Use C<guestfs_list_dm_devices> to list all device mapper devices.|} };
+ 
+   { defaults with
+     name = "setfiles"; added = (1, 57, 1);
+-    style = RErr, [String (PlainString, "specfile"); StringList (Pathname, "paths")], [OBool "force"];
++    style = RErr, [String (PlainString, "specfile"); StringList (Pathname, "paths")], [OBool "force"; OStringList "excludes"];
+     impl = OCaml "Selinux.setfiles";
+     optional = Some "selinuxrelabel";
+     test_excuse = "tests are in the tests/relabel directory";
+@@ -9558,7 +9558,10 @@ If the list is empty, setfiles is not called.
+ 
+ The optional C<force> boolean controls whether the context
+ is reset for customizable files, and also whether the
+-user, role and range parts of the file context is changed.|} };
++user, role and range parts of the file context is changed.
++
++The optional C<excludes> list allows you to exclude parts of the
++directory tree by appending the C<setfiles> I<-e> option.|} };
+ 
+   { defaults with
+     name = "xfs_info2"; added = (1, 59, 2);
+-- 
+2.47.3
+
